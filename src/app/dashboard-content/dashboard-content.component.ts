@@ -29,6 +29,7 @@ interface WeekDay {
 })
 export class DashboardContentComponent implements OnInit {
 
+  private readonly BASE_HOUR = 3; // Hora base del calendario (3 AM)
   
   currentDate: Date;
   currentMonthName: string;
@@ -45,13 +46,12 @@ endDay: string = '';
 
   events: CalendarEvent[] = [];
 
-private typeColors: { [key: string]: string } = {
-  'estrategica': ' #0AD600BF',
-  'administrativa': '#EF0A06BF',
-  'operativa': '#086CF0BF',
-  'personal': '#747474BF'
-};
-
+  private typeColors: { [key: string]: { backgroundColor: string, borderColor: string } } = {
+    'estrategica': { backgroundColor: '#EFD9D9', borderColor: '#EF0A06' },
+    'administrativa': {  backgroundColor: '#D8EDD7', borderColor: '#0AD600' },
+    'operativa': { backgroundColor: '#CADCF4', borderColor: '#086CF0' },
+    'personal': { backgroundColor: '#E4E4E4', borderColor: '#747474' }
+  };
   
 
   // Variables para el modal
@@ -290,18 +290,19 @@ submitForm(): void {
     return;
   }
 
+  // Asegurarte de que la fecha del evento es correcta
   const newEvent: CalendarEvent = {
     id: Date.now().toString(),
     name: this.eventName,
     type: this.activityType,
-    date: new Date(this.selectedDate),
+    date: this.selectedDate,
     startTime: this.selectedStartTime,
     endTime: this.selectedEndTime,
-    color: this.typeColors[this.activityType as keyof typeof this.typeColors]
+    color: this.typeColors[this.activityType as keyof typeof this.typeColors].backgroundColor  
   };
+  
 
   this.events.push(newEvent);
-  
   console.log('Datos de la actividad:', newEvent);
   this.resetForm();
   this.closeModal();
@@ -317,43 +318,66 @@ getEventsForDay(weekDay: WeekDay): CalendarEvent[] {
   });
 }
 
+
 hasEventAtHour(weekDay: WeekDay, hour: number): CalendarEvent | null {
   const events = this.getEventsForDay(weekDay);
   return events.find(event => {
     const startHour = this.getHourFromTimeString(event.startTime);
-    return startHour === hour;
+    const endHour = this.getHourFromTimeString(event.endTime);
+    return hour === startHour;
   }) || null;
 }
 
+
 private getHourFromTimeString(timeString: string): number {
+  if (!timeString) return this.BASE_HOUR;
+  
   const [time, period] = timeString.split(' ');
   let [hours] = time.split(':').map(Number);
-  if (period === 'PM' && hours !== 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
+  
+  // Convertir a formato 24 horas
+  if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
   return hours;
 }
 
 calculateEventHeight(event: CalendarEvent): number {
   const startHour = this.getHourFromTimeString(event.startTime);
   const endHour = this.getHourFromTimeString(event.endTime);
-  return (endHour - startHour) * 60;
+  return (endHour - startHour) * 80; // Usar el mismo factor de altura que getEventStyle
 }
 
 getEventStyle(event: CalendarEvent): any {
-  const height = this.calculateEventHeight(event);
+  const startHour = this.getHourFromTimeString(event.startTime);
+  const endHour = this.getHourFromTimeString(event.endTime);
+  const duration = endHour - startHour;
+  
+  const startPosition = (startHour - this.BASE_HOUR) + 80;
+  const height = duration * 80;
+
+  const eventColor = this.typeColors[event.type];
+
   return {
     height: `${height}px`,
-    backgroundColor: event.color,
+    top: `${startPosition}px`,
+    backgroundColor: eventColor.backgroundColor,
+    borderLeft: `5px solid ${eventColor.borderColor}`,
     position: 'absolute',
     width: '95%',
     borderRadius: '4px',
     padding: '4px',
-    color: 'white',
+    color: eventColor.borderColor,  // Aquí asignamos el color del borde al texto
     zIndex: 1,
     overflow: 'hidden',
     cursor: 'pointer'
   };
 }
+
+
 
  resetForm(): void {
   this.eventName = '';
@@ -432,17 +456,19 @@ getDayName(dayIndex: number): string {
 
 
 generateAvailableTimes(): void {
-  const hours = Array.from({ length: 22 }, (_, i) => i + 3); // Rango de 3 AM a 12 AM
-  this.availableTimes = hours.map(hour => {
-    const amPm = hour >= 12 ? 'PM' : 'AM';
-    const formattedHour = hour > 12 ? hour - 12 : hour;
-    return `${formattedHour.toString().padStart(2, '0')}:00 ${amPm}`;
-  });
-
-  // Asignamos los valores iniciales para startTime y endTime
-  this.startTime = this.availableTimes[0];  // Primera opción (3:00 AM)
-  this.endTime = this.availableTimes[1];    // Segunda opción (4:00 AM)
+  const times: string[] = [];
+  
+  // Generar horas desde BASE_HOUR (3 AM) hasta 12 AM del día siguiente
+  for (let hour = this.BASE_HOUR; hour < this.BASE_HOUR + 21; hour++) {
+    const adjustedHour = hour % 24; // Asegura que las horas estén en el rango 0-23
+    const isPM = adjustedHour >= 12;
+    const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
+    times.push(`${displayHour.toString().padStart(2, '0')}:00 ${isPM ? 'PM' : 'AM'}`);
+  }
+  
+  this.availableTimes = times;
 }
+
 
 
 
@@ -462,9 +488,13 @@ onDateClick(event: Event): void {
 // Métodos actualizados
 onDateChange(event: any): void {
   const selectedValue = event.target.value;
-  this.selectedDate = new Date(selectedValue);
+  const [year, month, day] = selectedValue.split('-').map(Number);
+  this.selectedDate = new Date(year, month - 1, day); // Removemos UTC
   this.day = selectedValue;
 }
+
+
+
 
 onStartTimeChange(value: string): void {
   this.selectedStartTime = value;
