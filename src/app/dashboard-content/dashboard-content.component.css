@@ -1,0 +1,917 @@
+/* General Reset */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    overflow-x: hidden;  /* Deshabilita el scroll horizontal */
+    overflow-y: auto;    /* Habilita solo el scroll vertical */
+  }
+  
+  /* Layout */
+  .dashboard-container {
+    display: grid;
+    height: 100%;
+    position: relative;
+    overflow: hidden; /* Evita que el contenido principal afecte el diseño general */
+  
+  }
+  
+  /* Sidebar */
+  .sidebar {
+    width: 30px;
+    background-color: #162172;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    box-sizing: border-box;
+    position: fixed;  /* Fija el sidebar en su lugar */
+  }
+  
+  
+  
+  /* Sidebar Header */
+  .sidebar-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 15px;
+    background-color: rgb(255, 255, 255);
+    border-bottom: 1px solid #ddd;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    position: fixed;  /* Fija el header en su lugar */
+    top: 0; /* Asegura que quede en la parte superior */
+    left: 0; /* Alinea el header al sidebar */
+    right: 0; /* Para asegurarse de que ocupe todo el ancho */
+    z-index: 10; /* Asegura que el header esté por encima del contenido */
+  }
+  
+  /* Separación de los iconos en el header */
+  .sidebar-header .sidebar-icons {
+    display: flex;
+    gap: 20px;  /* Espacio entre los iconos */
+    align-items: center;
+  }
+  
+  /* Ajustes para los iconos dentro del Sidebar Header */
+  .sidebar-header .sidebar-icons i {
+    font-size: 24px; /* Tamaño adecuado para los íconos */
+    color: #081ec4; /* Color que combine con el diseño */
+  }
+  
+  /* Efecto al pasar el mouse sobre los iconos */
+  .sidebar-header .sidebar-icons i:hover {
+    color: #0056b3;  /* Color al hacer hover */
+    transition: color 0.3s ease;
+  }
+  
+  /* Sidebar Menu */
+  .sidebar .menu {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+    margin-top: 40px; /* Ajusta para dejar espacio debajo del header fijo */
+  }
+  
+  .sidebar .menu-item {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 10px;
+    color: white;
+  }
+  
+  /* Icono de apagado */
+  .sidebar .menu-item.logout {
+    position: absolute;
+    bottom: 5px; /* Ajusta el valor de 'bottom' para colocar el icono en la parte inferior */
+    left: 50%; /* Alineación horizontal centrada */
+    transform: translateX(-50%); /* Centra el icono en la parte inferior */
+    color: #ff4d4d; /* Color del icono de apagado */
+  }
+  
+  
+  /*.sidebar .menu-item:hover {
+    background-color: #b30000;
+  } */
+  
+  /* Main Content */
+  .main-content {
+    flex: 1;
+    flex-direction: column;
+    padding: 20px;
+    gap: 20px;
+    margin-left: 30px;  /* Deja espacio para el sidebar */
+    margin-top: 30px;  /* Deja espacio para el sidebar-header */
+    overflow-y:auto;  /* Solo habilita scroll vertical */
+    overflow-x: hidden; /* Deshabilita el scroll horizontal */
+  
+  }
+  
+  
+  .header {
+    background-color: white;
+    padding: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Aplica la fuente Lato y el color a todo el h1 */
+  .header h1 {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 24px;
+    font-weight: 600; /* Semibold */
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif; /* Aplica la tipografía Lato */
+    color: #CDACAC; /* Aplica el color */
+  }
+  
+  .header-icon {
+    font-size: 28px; /* Tamaño del ícono */
+    color: #8FABEF; /* Color que combine con el diseño */
+  }
+  
+
+
+/* Contenedor principal con la fila de tres elementos */
+.content {
+    display: grid;
+        grid-template-areas: 'monthly-calendar calendar '
+        'activities calendar '
+        'extra calendar'
+         
+        
+    ; /* Distribuye espacio entre los dos elementos */
+    gap: 5px;
+    grid-template-columns: 1fr 3fr; /* Define el ancho relativo de las columnas */
+    padding: 5px;
+    
+   
+  }
+  
+
+  /* Sección de actividades y calendario */
+  .activities{
+    grid-area: activities;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    margin-top: 10px;
+  }
+
+  .extra{
+    grid-area: extra;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    margin-top: 10px;
+  }
+
+  .monthly-calendar{
+    grid-area: monthly-calendar;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    margin-top: 10px;
+  }
+
+
+  /* Encabezados de los contenedores */
+  .activities h3, .extra h3, .monthly-calendar h2 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    margin-left: 10px;
+  }
+  
+  /* Listado de actividades y extras */
+  .activities ul, .extra ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .activities li, .extra li {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+  }
+  
+  .activities .icon, .extra .icon {
+    font-size: 1rem;
+    margin-right: 10px;
+  }
+  
+  .activity-text {
+    font-size: 1.3rem;
+    margin-left: 5px;
+  }
+  .estrategica i {
+    color: #EF0A06BF;
+    font-size: 1.3rem;
+    margin-left: 10px;
+  }
+  
+  .administrativa i {
+    color: #0AD600BF;
+    font-size: 1.3rem;
+    margin-left: 10px;
+  }
+  
+  .operativa i {
+    color: #086CF0BF;
+    font-size: 1.3rem;
+    margin-left: 10px;
+  }
+  
+  .personal i {
+    color: #747474BF;
+    font-size: 1.3rem;
+    margin-left: 10px;
+  }
+  
+  .percentage {
+    display: flex;
+    align-items: center;
+    color: rgba(55, 55, 55, 0.5);
+    text-align: right;
+    margin-left: auto;
+  }
+  
+  .percentage i {
+    color: inherit;
+    margin-right: 5px;
+    font-size: 1.125rem; /* Ajuste de tamaño de icono */
+  }
+  
+  .percentage-text {
+    color: inherit;
+    font-weight: bold;
+  }
+  
+ 
+  
+  .not-current-month {
+    text-align: center;
+    font-size: 1rem;
+    width: 14.28%;
+    color: rgba(55, 55, 55, 0.50);
+
+
+    font-family: Arial, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    height: 22px;
+    padding: 10px; 
+  }
+
+  .holiday {
+   color: #8298E1;
+  }
+  
+  
+  .calendar-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .monthly-calendar h2 {
+    color: #373737;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1.25rem; /* Ajuste de fuente */
+    font-weight: 700;
+  }
+  
+  .nav-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #373737;
+    transition: color 0.3s ease;
+  }
+  
+  .nav-button:hover {
+    color: #2980b9;
+  }
+  
+  /* Tabla del calendario */
+  table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+  
+  th {
+    color: rgba(0, 0, 0, 0.25);
+    font-family: Lato;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 12px;
+    text-transform: uppercase;
+  }
+  
+  td {
+    text-align: center;
+    font-size: 1rem;
+    width: 14.28%;
+    color: #373737;
+    font-family: Arial, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    height: 22px;
+    padding: 10px;
+  }
+  
+  td:hover {
+    background-color: #a9bff3;
+    cursor: pointer;
+  }
+  
+  td.empty {
+    background-color: #f9f9f9;
+  }
+  
+  td.current-day {
+    background-color: #ffeb3b;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  td.disabled {
+    color: #ccc;
+  }
+  
+  /* Layout del calendario semanal */
+  /* Calendario */
+  .calendar-container {
+    display: grid;
+    flex-direction: column;  /* Asegura que los elementos se apilen verticalmente */
+    align-items: stretch;  /* Asegura que los elementos ocupen todo el ancho disponible */
+    height:auto;
+    overflow: hidden;
+    border-radius: 8px;
+    margin-top: 10px;
+  grid-area: calendar;
+  }
+
+
+  
+  /* Calendario */
+  .calendar {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    flex-direction: column;
+    width: 100%;
+    height: 100%; /* Ajusta al 100% del contenedor padre */
+    overflow-y: auto;
+    min-height: 0; /* Importante para que el scroll funcione correctamente */
+    max-height: 750px; /* Mantiene la altura máxima especificada */
+    border-radius: 8px;
+    background-color: #Fff;
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+border: 1px solid #ddd;
+ 
+  }
+  
+  
+    .calendar-header {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 10px 20px;
+    
+    }
+  
+  .numWeek {
+    font-weight: bold;
+    font-size: 1.1rem; /* Ajuste de fuente */
+    color: #373737;
+    margin-left: 40px;
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: #fff;
+    padding: 5px;
+    border-radius: 45px;
+    height: 28px;
+    justify-content: center;
+   
+  }
+  
+  .create-btn {
+    height: 34px;
+    flex-shrink: 0;
+    align-self: stretch;
+    border-radius: 10px;
+    background: #162172;
+    color: #fff;
+    margin-left: auto;
+    padding: 0 15px;
+    cursor: pointer;
+  }
+  
+  
+  
+  /* Botones de navegación del calendario */
+  .calendar-nav-btn {
+    font-size: 1.25rem; /* Ajuste de tamaño */
+    margin-right: 10px; /* Añadido un margen para mejor espacio */
+    color: #373737;
+    border: none;
+    cursor: pointer
+  }
+  
+  .calendar-month {
+    font-weight: bold;
+    font-size: 1.5rem; /* Ajuste de fuente */
+    color: #0e0d0d;
+    margin-left: 5px;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  
+  
+  
+  .day-number {
+    font-size: 1.5rem; /* Ajuste de tamaño */
+    font-weight: bold;
+    color: rgba(55, 55, 55, 0.75);
+    display: block;
+    margin-top: 5px;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  
+  .time {
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    height: 80px;
+    background-color: #f8f9fa;
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #373737;
+    font-size: 0.625rem; /* Ajuste de tamaño */
+    font-weight: 700;
+  }
+  
+  .time span {
+    position: absolute;
+    bottom: 0;
+    left: 15px;
+    font-size: 0.75rem;
+    color: #555;
+    top: 70px;
+  }
+  
+  .day {
+    border-radius: 5px;
+    border-right: 1px solid rgba(223, 223, 223, 0.50);
+    color: rgba(55, 55, 55, 0.37);
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1.25rem; /* Ajuste de tamaño */
+    font-weight: 700;
+    background: #F8F9FA;
+  }
+
+  .today {
+    color: #8298E1;  /* Cambia el color del texto a blanco si es necesario */
+    font-weight: bold;  /* Opcional: resalta el texto */
+  }
+
+  .event {
+    position: absolute;
+    top: 1px;
+    padding-left: 2px;
+    width: calc(100% - 10px);
+    height: 162px;
+
+    font-family: Arial, Helvetica, sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+    
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: bold;
+    text-align: left; /* Cambié el text-align para alinearlo a la izquierda */
+    display: flex;
+    flex-direction: column; /* Asegura que los elementos se apilen en columna */
+    justify-content: space-between; /* Coloca los elementos en los bordes superior e inferior */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1;
+    pointer-events: none;
+    padding-top: 10px; /* Esto ajusta el espacio entre el borde superior y el texto */
+  }
+  
+  .event:hover {
+    opacity: 0.9;
+  }
+  
+  .hour {
+    position: relative;
+    border: 1px solid rgba(223, 223, 223, 0.50);
+    background-color: #fff;
+    height: 80px;
+  }
+  
+  .hour:hover {
+    background-color: #fff;
+  }
+  
+
+/* =================
+   Modal Container 
+   ================= */
+   .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .modal-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .modal-title {
+    text-align: left;
+    margin-bottom: 2rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .full-width-input,
+  .full-width-select,
+  .time-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    color: #4a5568;
+    background-color: white;
+    transition: border-color 0.2s ease;
+  }
+  
+  .full-width-input:focus,
+  .full-width-select:focus,
+  .time-input:focus {
+    outline: none;
+    border-color: #4c51bf;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+  }
+  
+  .time-inputs {
+    display: flex;
+    gap: 1rem;
+  }
+  
+  .time-input {
+    flex: 1;
+  }
+  
+  .submit-button {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #1a237e;
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .submit-button:hover {
+    background-color: #0d1757;
+  }
+  
+  .submit-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.3);
+  }
+  
+  ::placeholder {
+    color: #a0aec0;
+  }
+
+  .close-button {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #666;
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+  
+  .close-button:hover {
+    background-color: #f3f4f6;
+    color: #333;
+  }
+  
+  .close-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+  }
+  
+  /* Ajuste para la posición relativa del modal-content */
+  .modal-content {
+    position: relative;
+    /* ... resto de estilos del modal-content ... */
+  }
+  
+  @media (max-width: 640px) {
+    .modal-content {
+      padding: 1.5rem;
+      width: 95%;
+    }
+  
+    .time-inputs {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
+  
+    
+
+  
+  
+/* Media Queries mejorados */
+/* Pantallas extra grandes (4K y superiores) */
+@media screen and (min-width: 2560px) {
+  .content {
+      max-width: 2400px;
+      gap: 30px;
+  }
+
+  .calendar {
+      min-height: 1000px;
+  }
+
+  .time span {
+      font-size: 1rem;
+  }
+
+  .event, .event2, .event3, .event4 {
+      font-size: 1.1rem;
+  }
+}
+
+/* Pantallas grandes */
+@media screen and (max-width: 1600px) {
+  .content {
+      grid-template-columns: 320px 1fr;
+      gap: 15px;
+  }
+
+  .calendar {
+      min-height: 700px;
+  }
+}
+
+/* Laptops y pantallas medianas */
+@media screen and (max-width: 1366px) {
+  .content {
+      grid-template-columns: 300px 1fr;
+      gap: 10px;
+  }
+
+  .monthly-calendar,
+  .activities,
+  .extra {
+      max-width: 280px;
+  }
+}
+
+/* Tablets y laptops pequeñas */
+@media screen and (max-width: 1024px) {
+  .content {
+      grid-template-areas:
+          'monthly-calendar'
+          'activities'
+          'extra'
+          'calendar';
+      grid-template-columns: 1fr;
+  }
+
+  .monthly-calendar,
+  .activities,
+  .extra {
+      max-width: 100%;
+  }
+
+  .calendar-container {
+      margin-top: 20px;
+  }
+}
+
+/* Tablets verticales y móviles grandes */
+@media screen and (max-width: 768px) {
+  .content {
+      padding: 10px;
+  }
+
+  .calendar {
+      min-width: 600px;
+      font-size: 0.9rem;
+  }
+
+  .time span {
+      font-size: 0.7rem;
+  }
+
+  .day {
+      font-size: 1rem;
+  }
+
+  .event, .event2, .event3, .event4 {
+      padding-left: 1px;
+      font-size: 0.8rem;
+  }
+}
+
+/* Móviles */
+@media screen and (max-width: 480px) {
+  .content {
+      padding: 5px;
+  }
+
+  .monthly-calendar,
+  .activities,
+  .extra {
+      padding: 10px;
+  }
+
+  .calendar {
+      min-width: 400px;
+  }
+
+  .time {
+      height: 60px;
+  }
+
+  .time span {
+      font-size: 0.6rem;
+      left: 5px;
+  }
+
+  .event, .event2, .event3, .event4 {
+      width: calc(100% - 5px);
+      padding-top: 5px;
+  }
+
+  .event-name {
+      font-size: 0.9rem;
+  }
+
+  .calendar-header {
+      padding: 5px 10px;
+  }
+
+  .create-btn {
+      height: 30px;
+      padding: 0 10px;
+      font-size: 0.9rem;
+  }
+}
+
+
+/* Extra */
+@media screen and (max-width: 425px) {
+  .content {
+      padding: 1px;
+  }
+
+  .monthly-calendar,
+  .activities,
+  .extra {
+      padding: 5px;
+  }
+
+  .calendar-header{
+    min-width: 500px;
+  }
+  .calendar-container {
+      min-width: 200px;
+      overflow-x: auto;
+  }
+
+  .time {
+      height: 20px;
+  }
+
+  .time span {
+      font-size: 0.6rem;
+      left: 5px;
+  }
+
+  .event, .event2, .event3, .event4 {
+      width: calc(100% - 5px);
+      padding-top: 5px;
+  }
+
+  .event-name {
+      font-size: 0.9rem;
+  }
+
+  .calendar-header {
+      padding: 5px 10px;
+  }
+
+  .create-btn {
+      height: 30px;
+      padding: 0 10px;
+      font-size: 0.9rem;
+  }
+}
+
+
+
+/* Ajustes para altura de pantalla */
+@media screen and (max-height: 800px) {
+  .calendar {
+      max-height: 600px;
+  }
+}
+
+/* Soporte para modo oscuro del sistema */
+@media (prefers-color-scheme: dark) {
+  .calendar,
+  .monthly-calendar,
+  .activities,
+  .extra {
+      background: #1a1a1a;
+      color: #fff;
+      border-color: #333;
+  }
+
+  .hour {
+      background-color: #1a1a1a;
+      border-color: #333;
+  }
+
+  .day {
+      background: #222;
+      color: rgba(255, 255, 255, 0.7);
+  }
+
+  .time {
+      background-color: #222;
+      color: #fff;
+  }
+}
+
+/* Ajustes de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  .event, .event2, .event3, .event4 {
+      transition: none;
+  }
+}
+
+
+
+
+
