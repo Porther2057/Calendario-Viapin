@@ -31,6 +31,8 @@ export class DashboardContentComponent implements OnInit {
 
   private readonly BASE_HOUR = 3; // Hora base del calendario (3 AM)
   
+  draggedEventId: string | null = null;
+  draggedEvent: CalendarEvent | null = null;
   currentDate: Date;
   currentMonthName: string;
   currentYear: number;
@@ -348,7 +350,15 @@ private getHourFromTimeString(timeString: string): number {
 calculateEventHeight(event: CalendarEvent): number {
   const startHour = this.getHourFromTimeString(event.startTime);
   const endHour = this.getHourFromTimeString(event.endTime);
-  return (endHour - startHour) * 80; // Usar el mismo factor de altura que getEventStyle
+  return (endHour - startHour) * 80; 
+}
+
+
+isEventInHour(event: CalendarEvent, hour: number): boolean {
+  const startHour = this.getHourFromTimeString(event.startTime);
+  const endHour = this.getHourFromTimeString(event.endTime);
+  // Solo retorna true para la hora de inicio del evento
+  return hour === startHour;
 }
 
 getEventStyle(event: CalendarEvent): any {
@@ -356,27 +366,97 @@ getEventStyle(event: CalendarEvent): any {
   const endHour = this.getHourFromTimeString(event.endTime);
   const duration = endHour - startHour;
   
-  const startPosition = (startHour - this.BASE_HOUR) + 80;
-  const height = duration * 80;
-
   const eventColor = this.typeColors[event.type];
 
   return {
-    height: `${height}px`,
-    top: `${startPosition}px`,
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    right: '0',
+    button: '0',
+    height: `${duration * 82}px`, // Multiplicamos por la altura de cada celda (80px)
     backgroundColor: eventColor.backgroundColor,
     borderLeft: `5px solid ${eventColor.borderColor}`,
-    position: 'absolute',
-    width: '95%',
-    borderRadius: '4px',
+    color: eventColor.borderColor,
     padding: '4px',
-    color: eventColor.borderColor,  // Aquí asignamos el color del borde al texto
     zIndex: 1,
     overflow: 'hidden',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    margin: '0'
   };
 }
 
+ formatEventTime(event: CalendarEvent): string {
+    return `${event.startTime} - ${event.endTime}`;
+  }
+
+onDragStart(event: DragEvent, calendarEvent: CalendarEvent): void {
+  if (event.dataTransfer) {
+    this.draggedEventId = calendarEvent.id;
+    event.dataTransfer.setData('application/json', JSON.stringify(calendarEvent));
+    
+    // Añadir una clase al elemento que se está arrastrando
+    const element = event.target as HTMLElement;
+    element.classList.add('dragging');
+  }
+}
+
+onDragOver(event: DragEvent, date: Date): void {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Añadir una clase visual al día sobre el que estamos arrastrando
+  const element = event.currentTarget as HTMLElement;
+  element.classList.add('drag-over');
+}
+
+onDragLeave(event: DragEvent): void {
+  // Remover la clase visual cuando el elemento sale de la zona
+  const element = event.currentTarget as HTMLElement;
+  element.classList.remove('drag-over');
+}
+
+onDragEnd(event: DragEvent): void {
+  // Limpiar clases y estado cuando termina el arrastre
+  const element = event.target as HTMLElement;
+  element.classList.remove('dragging');
+  this.draggedEventId = null;
+}
+
+onDrop(event: DragEvent, targetDate: Date, hour: number): void {
+  event.preventDefault();
+  event.stopPropagation();
+
+  // Remover la clase visual
+  const element = event.currentTarget as HTMLElement;
+  element.classList.remove('drag-over');
+
+  try {
+    const eventData = event.dataTransfer?.getData('application/json');
+    if (!eventData) return;
+
+    const draggedEvent = JSON.parse(eventData) as CalendarEvent;
+    const eventIndex = this.events.findIndex(e => e.id === draggedEvent.id);
+    
+    if (eventIndex !== -1) {
+      // Crear una nueva fecha manteniendo la hora original
+      const originalDate = new Date(this.events[eventIndex].date);
+      const newDate = new Date(targetDate);
+      newDate.setHours(originalDate.getHours());
+      newDate.setMinutes(originalDate.getMinutes());
+
+      // Actualizar el evento
+      this.events[eventIndex] = {
+        ...this.events[eventIndex],
+        date: newDate
+      };
+
+      this.cdr.detectChanges();
+    }
+  } catch (error) {
+    console.error('Error al mover el evento:', error);
+  }
+}
 
 
  resetForm(): void {
