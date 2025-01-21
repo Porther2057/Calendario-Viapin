@@ -265,21 +265,36 @@
         <div class="day">DOM<br><span class="day-number" [ngClass]="{'today': getWeekDays()[6].isToday}">{{ getWeekDays()[6].day }}</span></div>
 
      <!-- Time Slots -->
-    <!-- Grid de horas -->
-<ng-container *ngFor="let hour of [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23, 00]">
-  <div class="time"><span>{{hour}}:00</span></div>
-  <div class="hour" *ngFor="let weekDay of getWeekDays()">
-    <ng-container *ngFor="let event of getEventsForDay(weekDay)">
-      <div 
-        *ngIf="hasEventAtHour(weekDay, hour)"
-        class="event"
-        [ngStyle]="getEventStyle(event)"
-        [title]="event.name">
-        {{event.name}}
+     <ng-container *ngFor="let hour of [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0]">
+      <div class="time"><span>{{hour}}:00</span></div>
+      <div class="hour" 
+           *ngFor="let weekDay of getWeekDays()"
+           (dragover)="onDragOver($event, weekDay.date)"
+           (dragleave)="onDragLeave($event)"
+           (drop)="onDrop($event, weekDay.date, hour)">
+        <ng-container *ngFor="let event of getEventsForDay(weekDay)">
+          <div 
+          *ngIf="isEventInHour(event, hour)"
+          class="event"
+          [ngStyle]="getEventStyle(event)"
+          [title]="event.name"
+          draggable="true"
+          (dragstart)="onDragStart($event, event)"
+          (dragend)="onDragEnd($event)">
+          
+          <!-- Mostrar el nombre del evento -->
+          <div>{{ event.name }}</div> 
+          
+          <!-- Espacio flexible para empujar las horas hacia abajo -->
+          <div style="flex-grow: 1"></div> 
+          
+          <!-- Mostrar las horas del evento en la parte inferior -->
+          <div class="event-times">{{ event.startTime }} - {{ event.endTime }}</div>
+        </div>
+
+        </ng-container>
       </div>
     </ng-container>
-  </div>
-</ng-container>
         </div>
       </div>
   </div>
