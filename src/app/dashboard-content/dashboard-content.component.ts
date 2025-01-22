@@ -19,6 +19,13 @@ interface WeekDay {
   isToday: boolean;
 }
 
+interface ActivityStats {
+  estrategica: number;
+  administrativa: number;
+  operativa: number;
+  personal: number;
+}
+
 
 @Component({
   selector: 'app-dashboard-content',
@@ -30,6 +37,8 @@ interface WeekDay {
 export class DashboardContentComponent implements OnInit {
 
   private readonly BASE_HOUR = 3; // Hora base del calendario (3 AM)
+
+  
   
   draggedEventId: string | null = null;
   draggedEvent: CalendarEvent | null = null;
@@ -59,10 +68,17 @@ endDay: string = '';
   // Variables para el modal
   isCreateEventModalOpen: boolean = false;
   isModalOpen: boolean = false; // Controla la visibilidad del modal
- // Añade estas propiedades si no las tienes
-selectedDate: Date | null = null;
-selectedStartTime: string = '';
-selectedEndTime: string = '';
+  selectedDate: Date | null = null;
+  selectedStartTime: string = '';
+  selectedEndTime: string = '';
+
+   //  para los porcentajes
+   activityPercentages: ActivityStats = {
+    estrategica: 0,
+    administrativa: 0,
+    operativa: 0,
+    personal: 0
+  };
  
 
    // Variable para los datos del formulario
@@ -258,10 +274,18 @@ selectedEndTime: string = '';
   }
   
   
-    // Método para abrir el modal
-  openCreateEventModal(): void {
-    this.isModalOpen = true;
-  }
+ // Método para abrir el modal
+ openCreateEventModal(): void {
+  // Resetear solo los campos que no son la fecha
+  this.eventName = '';
+  this.activityType = '';
+  this.selectedStartTime = '';
+  this.selectedEndTime = '';
+  this.time = '';
+  this.endDay = '';
+  
+  this.isModalOpen = true;
+}
 
 // Métodos para el modal
 onModalBackgroundClick(event: MouseEvent): void {
@@ -274,17 +298,22 @@ onModalContentClick(event: MouseEvent): void {
   event.stopPropagation();
 }
 
-closeModal(): void {
-  this.isModalOpen = false;
-  this.resetForm();
-}
 
 onDayClick(day: any) {
   if (day && day.isCurrentMonth) {
+    // Crear una nueva fecha basada en el día seleccionado
+    const selectedDate = new Date(this.currentYear, this.currentDate.getMonth(), day.day);
+    
+    // Establecer la fecha seleccionada
+    this.selectedDate = selectedDate;
+    
+    // Formatear la fecha para el input del formulario
+    this.day = this.formatDate(selectedDate);
+    
+    // Abrir el modal
     this.openCreateEventModal();
   }
 }
-
 
 submitForm(): void {
   if (!this.eventName || !this.activityType || !this.selectedDate || !this.selectedStartTime || !this.selectedEndTime) {
@@ -292,23 +321,61 @@ submitForm(): void {
     return;
   }
 
-  // Asegurarte de que la fecha del evento es correcta
-  const newEvent: CalendarEvent = {
+  // Verificar que la hora de fin sea posterior a la hora de inicio
+  const startHour = this.timeStringToHour(this.selectedStartTime);
+  const endHour = this.timeStringToHour(this.selectedEndTime);
+
+  if (endHour <= startHour) {
+    alert('La hora de finalización debe ser posterior a la hora de inicio.');
+    return;
+  }
+
+  // Crear objeto temporal para verificación
+  const newEvent: Partial<CalendarEvent> = {
+    date: this.selectedDate,
+    startTime: this.selectedStartTime,
+    endTime: this.selectedEndTime
+  };
+
+  // Verificar colisión de horarios
+  if (this.checkTimeCollision(newEvent)) {
+    alert('Ya existe un evento programado en ese horario. Por favor, seleccione un horario diferente.');
+    return;
+  }
+
+  // Si no hay colisión, crear el evento
+  const finalEvent: CalendarEvent = {
     id: Date.now().toString(),
     name: this.eventName,
     type: this.activityType,
     date: this.selectedDate,
     startTime: this.selectedStartTime,
     endTime: this.selectedEndTime,
-    color: this.typeColors[this.activityType as keyof typeof this.typeColors].backgroundColor  
+    color: this.typeColors[this.activityType as keyof typeof this.typeColors].backgroundColor
   };
-  
 
-  this.events.push(newEvent);
-  console.log('Datos de la actividad:', newEvent);
-  this.resetForm();
+  // Añadir el evento y recalcular porcentajes
+  this.events.push(finalEvent);
+  this.calculateActivityPercentages();
+  
   this.closeModal();
   this.cdr.detectChanges();
+}
+
+resetForm(): void {
+  this.eventName = '';
+  this.activityType = '';
+  this.selectedDate = null;
+  this.selectedStartTime = '';
+  this.selectedEndTime = '';
+  this.time = '';
+  this.endDay = '';
+  this.day = '';
+}
+
+closeModal(): void {
+  this.isModalOpen = false;
+  this.resetForm();
 }
 
 getEventsForDay(weekDay: WeekDay): CalendarEvent[] {
@@ -347,18 +414,14 @@ private getHourFromTimeString(timeString: string): number {
   return hours;
 }
 
-calculateEventHeight(event: CalendarEvent): number {
-  const startHour = this.getHourFromTimeString(event.startTime);
-  const endHour = this.getHourFromTimeString(event.endTime);
-  return (endHour - startHour) * 80; 
-}
+
 
 
 isEventInHour(event: CalendarEvent, hour: number): boolean {
   const startHour = this.getHourFromTimeString(event.startTime);
   const endHour = this.getHourFromTimeString(event.endTime);
   // Solo retorna true para la hora de inicio del evento
-  return hour === startHour;
+  return hour === startHour + 1;
 }
 
 getEventStyle(event: CalendarEvent): any {
@@ -376,13 +439,13 @@ getEventStyle(event: CalendarEvent): any {
     button: '0',
     height: `${duration * 82}px`, // Multiplicamos por la altura de cada celda (80px)
     backgroundColor: eventColor.backgroundColor,
-    borderLeft: `5px solid ${eventColor.borderColor}`,
+    borderLeft: `12px solid ${eventColor.borderColor}`,
     color: eventColor.borderColor,
     padding: '4px',
     zIndex: 1,
     overflow: 'hidden',
-    cursor: 'pointer',
-    margin: '0'
+    cursor: 'grabbing',
+    margin: '0',
   };
 }
 
@@ -459,13 +522,6 @@ onDrop(event: DragEvent, targetDate: Date, hour: number): void {
 }
 
 
- resetForm(): void {
-  this.eventName = '';
-  this.activityType = '';
-  this.selectedDate = null;
-  this.selectedStartTime = '';
-  this.selectedEndTime = '';
-}
 
 
 
@@ -592,5 +648,92 @@ private formatDate(date: Date): string {
   const day = date.getDate().toString().padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+// Método para verificar si hay colisión de horarios
+private checkTimeCollision(newEvent: Partial<CalendarEvent>): boolean {
+  // Convertir las horas del nuevo evento a números para comparación
+  const newStartHour = this.getHourFromTimeString(newEvent.startTime || '');
+  const newEndHour = this.getHourFromTimeString(newEvent.endTime || '');
+  const newDate = newEvent.date;
+
+  // Verificar cada evento existente
+  return this.events.some(existingEvent => {
+    // Solo verificar eventos del mismo día
+    if (existingEvent.date.toDateString() !== newDate?.toDateString()) {
+      return false;
+    }
+
+    const existingStartHour = this.getHourFromTimeString(existingEvent.startTime);
+    const existingEndHour = this.getHourFromTimeString(existingEvent.endTime);
+
+    // Verificar si hay superposición de horarios
+    return (
+      (newStartHour >= existingStartHour && newStartHour < existingEndHour) ||
+      (newEndHour > existingStartHour && newEndHour <= existingEndHour) ||
+      (newStartHour <= existingStartHour && newEndHour >= existingEndHour)
+    );
+  });
+}
+
+// Método auxiliar para convertir tiempo en formato "HH:MM AM/PM" a número de hora
+private timeStringToHour(timeString: string): number {
+  const [time, period] = timeString.split(' ');
+  let [hours] = time.split(':').map(Number);
+  
+  if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'AM' && hours === 12) {
+    hours = 0;
+  }
+  
+  return hours;
+}
+
+private calculateEventDuration(event: CalendarEvent): number {
+  const startHour = this.timeStringToHour(event.startTime);
+  const endHour = this.timeStringToHour(event.endTime);
+  return endHour - startHour;
+}
+
+// Método para calcular los porcentajes
+private calculateActivityPercentages(): void {
+  // Objeto para almacenar las horas totales por tipo de actividad
+  const hoursPerActivity: ActivityStats = {
+    estrategica: 0,
+    administrativa: 0,
+    operativa: 0,
+    personal: 0
+  };
+
+  // Calcular horas totales por tipo de actividad
+  let totalHours = 0;
+  
+  this.events.forEach(event => {
+    const duration = this.calculateEventDuration(event);
+    hoursPerActivity[event.type as keyof ActivityStats] += duration;
+    totalHours += duration;
+  });
+
+  // Si no hay eventos, establecer todos los porcentajes a 0
+  if (totalHours === 0) {
+    this.activityPercentages = {
+      estrategica: 0,
+      administrativa: 0,
+      operativa: 0,
+      personal: 0
+    };
+    return;
+  }
+
+  // Calcular porcentajes
+  Object.keys(hoursPerActivity).forEach(type => {
+    const percentage = (hoursPerActivity[type as keyof ActivityStats] / totalHours) * 100;
+    this.activityPercentages[type as keyof ActivityStats] = Math.round(percentage);
+  });
+
+  // Forzar actualización de la vista
+  this.cdr.detectChanges();
+}
+
 
 }
