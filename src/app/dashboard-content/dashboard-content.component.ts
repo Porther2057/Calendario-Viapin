@@ -37,13 +37,14 @@ interface ActivityStats {
 export class DashboardContentComponent implements OnInit {
 
   private readonly BASE_HOUR = 3; // Hora base del calendario (3 AM)
-
+  
   isDragging = false;
   draggedEvent: CalendarEvent | null = null;
   dragStartPosition: { x: number, y: number } = { x: 0, y: 0 };
   dragPreviewElement: HTMLDivElement | null = null;
   
   draggedEventId: string | null = null;
+  
 
   currentDate: Date;
   currentMonthName: string;
@@ -324,11 +325,25 @@ submitForm(): void {
     return;
   }
 
-  // Verificar que la hora de fin sea posterior a la hora de inicio
-  const startHour = this.timeStringToHour(this.selectedStartTime);
-  const endHour = this.timeStringToHour(this.selectedEndTime);
+  // Convertir tiempo a minutos desde la medianoche
+  const getMinutesFromMidnight = (timeString: string) => {
+    const [time, period] = timeString.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    return hours * 60 + minutes;
+  };
 
-  if (endHour <= startHour) {
+  const startMinutes = getMinutesFromMidnight(this.selectedStartTime);
+  const endMinutes = getMinutesFromMidnight(this.selectedEndTime);
+
+  // Verificar que la hora de fin sea posterior a la hora de inicio
+  if (endMinutes <= startMinutes) {
     alert('La hora de finalización debe ser posterior a la hora de inicio.');
     return;
   }
@@ -386,6 +401,37 @@ onMouseMove(event: MouseEvent) {
   if (this.isDragging && this.draggedEvent) {
     event.preventDefault();
     
+    if (!this.dragPreviewElement) {
+      this.dragPreviewElement = document.createElement('div');
+      this.dragPreviewElement.classList.add('event-drag-preview');
+      this.dragPreviewElement.style.position = 'absolute';
+      this.dragPreviewElement.style.pointerEvents = 'none';
+      this.dragPreviewElement.style.zIndex = '1000';
+      this.dragPreviewElement.style.opacity = '0.7';
+      this.dragPreviewElement.style.backgroundColor = this.typeColors[this.draggedEvent.type].backgroundColor;
+      this.dragPreviewElement.style.border = `2px dashed ${this.typeColors[this.draggedEvent.type].borderColor}`;
+      this.dragPreviewElement.style.padding = '5px';
+      this.dragPreviewElement.style.width = '200px'; // Ancho fijo similar a evento
+      this.dragPreviewElement.style.position = 'absolute';
+      
+      // Contenido del preview
+      const nameElement = document.createElement('div');
+      nameElement.textContent = this.draggedEvent.name;
+      
+      const timeElement = document.createElement('div');
+      timeElement.textContent = `${this.draggedEvent.startTime} - ${this.draggedEvent.endTime}`;
+      timeElement.style.fontSize = '0.8em';
+      timeElement.style.color = 'gray';
+      
+      this.dragPreviewElement.appendChild(nameElement);
+      this.dragPreviewElement.appendChild(timeElement);
+      
+      document.body.appendChild(this.dragPreviewElement);
+    }
+
+    // Posicionar preview
+    this.dragPreviewElement.style.left = `${event.clientX + 10}px`;
+    this.dragPreviewElement.style.top = `${event.clientY + 10}px`;
   }
 }
 
@@ -400,57 +446,47 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
   event.preventDefault();
   this.isDragging = true;
   this.draggedEvent = { ...calendarEvent };
+
+  const eventElement = event.target as HTMLElement;
+  eventElement.classList.add('event-dragging');
 }
-
-
-
-
 
 findTargetDay(event: MouseEvent): WeekDay | null {
   const weekDays = this.getWeekDays();
   const calendarElement = document.querySelector('.calendar');
-  
-  if (!calendarElement) return null;
 
+  if (!calendarElement) return null;
   const calendarRect = calendarElement.getBoundingClientRect();
   const mouseX = event.clientX - calendarRect.left;
   const dayWidth = calendarRect.width / 7;
-
-  // Determine which day column the mouse is over
   const dayIndex = Math.floor(mouseX / dayWidth);
 
   return dayIndex >= 0 && dayIndex < weekDays.length ? weekDays[dayIndex] : null;
 }
 
 updateEventDate(event: CalendarEvent, targetDay: WeekDay) {
-  // Remove the event from its original location
   const originalIndex = this.events.findIndex(e => e.id === event.id);
   if (originalIndex !== -1) {
-    // Update the date while preserving other event details
+
     this.events[originalIndex] = {
       ...this.events[originalIndex],
       date: targetDay.date
     };
-
-    // Recalculate activity percentages after moving
     this.calculateActivityPercentages();
   }
 }
 
-
-
 finalizeDragDrop(event: MouseEvent) {
-  // Remove dragging class
+
   const eventElements = document.querySelectorAll('.event-dragging');
   eventElements.forEach(el => el.classList.remove('event-dragging'));
 
-  // Remove drag preview
+
   if (this.dragPreviewElement) {
     document.body.removeChild(this.dragPreviewElement);
     this.dragPreviewElement = null;
   }
 
-  // Existing drag drop logic...
   const targetDay = this.findTargetDay(event);
 
   if (targetDay) {
@@ -509,17 +545,26 @@ getEventStyle(event: CalendarEvent): any {
   const endHour = this.getHourFromTimeString(event.endTime);
   const duration = endHour - startHour;
   
+  // Extract minutes from start and end times
+  const [startMinutes, endMinutes] = [
+    parseInt(event.startTime.split(':')[1].split(' ')[0]),
+    parseInt(event.endTime.split(':')[1].split(' ')[0])
+  ];
+
+  // Calculate vertical offset and height proportionally
+  const minuteOffset = startMinutes / 60;
+  const minuteDuration = ((endHour - startHour) * 60 + (endMinutes - startMinutes)) / 60;
+
   const eventColor = this.typeColors[event.type];
 
   return {
     position: 'absolute',
-    top: '0',
+    top: `${minuteOffset * 82}px`, // Adjust top position based on minutes
     left: '0',
     right: '0',
-    button: '0',
-    height: `${duration * 82}px`, // Multiplicamos por la altura de cada celda (80px)
+    height: `${minuteDuration * 82}px`, // Adjust height proportionally
     backgroundColor: eventColor.backgroundColor,
-    borderLeft: `12px solid ${eventColor.borderColor}`,
+    borderLeft: `8px solid ${eventColor.borderColor}`,
     color: eventColor.borderColor,
     padding: '4px',
     zIndex: 1,
@@ -529,7 +574,6 @@ getEventStyle(event: CalendarEvent): any {
     margin: '0'
   };
 }
-
  formatEventTime(event: CalendarEvent): string {
     return `${event.startTime} - ${event.endTime}`;
   }
@@ -606,7 +650,11 @@ generateAvailableTimes(): void {
     const adjustedHour = hour % 24; // Asegura que las horas estén en el rango 0-23
     const isPM = adjustedHour >= 12;
     const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
-    times.push(`${displayHour.toString().padStart(2, '0')}:00 ${isPM ? 'PM' : 'AM'}`);
+    
+    // Añadir intervalos de 15 minutos
+    ['00', '15', '30', '45'].forEach(minute => {
+      times.push(`${displayHour.toString().padStart(2, '0')}:${minute} ${isPM ? 'PM' : 'AM'}`);
+    });
   }
   
   this.availableTimes = times;
@@ -645,28 +693,42 @@ private formatDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-// Método para verificar si hay colisión de horarios
 private checkTimeCollision(newEvent: Partial<CalendarEvent>): boolean {
-  // Convertir las horas del nuevo evento a números para comparación
-  const newStartHour = this.getHourFromTimeString(newEvent.startTime || '');
-  const newEndHour = this.getHourFromTimeString(newEvent.endTime || '');
+  const newStartTime = newEvent.startTime || '';
+  const newEndTime = newEvent.endTime || '';
   const newDate = newEvent.date;
 
-  // Verificar cada evento existente
+  // Convertir tiempo a minutos desde la medianoche
+  const getMinutesFromMidnight = (timeString: string): number => {
+    const [time, period] = timeString.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    return hours * 60 + minutes;
+  };
+
+  const newStartMinutes = getMinutesFromMidnight(newStartTime);
+  const newEndMinutes = getMinutesFromMidnight(newEndTime);
+
   return this.events.some(existingEvent => {
     // Solo verificar eventos del mismo día
     if (existingEvent.date.toDateString() !== newDate?.toDateString()) {
       return false;
     }
 
-    const existingStartHour = this.getHourFromTimeString(existingEvent.startTime);
-    const existingEndHour = this.getHourFromTimeString(existingEvent.endTime);
+    const existingStartMinutes = getMinutesFromMidnight(existingEvent.startTime);
+    const existingEndMinutes = getMinutesFromMidnight(existingEvent.endTime);
 
-    // Verificar si hay superposición de horarios
+    // Verificar superposición precisa de minutos
     return (
-      (newStartHour >= existingStartHour && newStartHour < existingEndHour) ||
-      (newEndHour > existingStartHour && newEndHour <= existingEndHour) ||
-      (newStartHour <= existingStartHour && newEndHour >= existingEndHour)
+      (newStartMinutes >= existingStartMinutes && newStartMinutes < existingEndMinutes) ||
+      (newEndMinutes > existingStartMinutes && newEndMinutes <= existingEndMinutes) ||
+      (newStartMinutes <= existingStartMinutes && newEndMinutes >= existingEndMinutes)
     );
   });
 }
@@ -730,6 +792,8 @@ private calculateActivityPercentages(): void {
   // Forzar actualización de la vista
   this.cdr.detectChanges();
 }
+
+
 
 }
 
