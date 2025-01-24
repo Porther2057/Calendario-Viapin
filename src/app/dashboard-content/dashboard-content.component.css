@@ -511,11 +511,28 @@ border: 1px solid #ddd;
     font-size: 0.9rem;
 
 }
-  
+
   
   .event:hover {
     opacity: 0.9;
   }
+
+  .event-resize-top, 
+.event-resize-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 10px;
+  cursor: ns-resize;
+  z-index: 10;
+}
+.event-resize-top {
+  top: 0;
+}
+.event-resize-bottom {
+  bottom: 0;
+}
+  
   
   
 
