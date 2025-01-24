@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
@@ -38,10 +38,13 @@ export class DashboardContentComponent implements OnInit {
 
   private readonly BASE_HOUR = 3; // Hora base del calendario (3 AM)
 
-  
+  isDragging = false;
+  draggedEvent: CalendarEvent | null = null;
+  dragStartPosition: { x: number, y: number } = { x: 0, y: 0 };
+  dragPreviewElement: HTMLDivElement | null = null;
   
   draggedEventId: string | null = null;
-  draggedEvent: CalendarEvent | null = null;
+
   currentDate: Date;
   currentMonthName: string;
   currentYear: number;
@@ -363,7 +366,7 @@ submitForm(): void {
 }
 
 resetForm(): void {
-  this.eventName = '';
+  this.eventName = ''; 
   this.activityType = '';
   this.selectedDate = null;
   this.selectedStartTime = '';
@@ -378,6 +381,87 @@ closeModal(): void {
   this.resetForm();
 }
 
+@HostListener('document:mousemove', ['$event'])
+onMouseMove(event: MouseEvent) {
+  if (this.isDragging && this.draggedEvent) {
+    event.preventDefault();
+    
+  }
+}
+
+@HostListener('document:mouseup', ['$event'])
+onMouseUp(event: MouseEvent) {
+  if (this.isDragging && this.draggedEvent) {
+    this.finalizeDragDrop(event);
+  }
+}
+
+startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
+  event.preventDefault();
+  this.isDragging = true;
+  this.draggedEvent = { ...calendarEvent };
+}
+
+
+
+
+
+findTargetDay(event: MouseEvent): WeekDay | null {
+  const weekDays = this.getWeekDays();
+  const calendarElement = document.querySelector('.calendar');
+  
+  if (!calendarElement) return null;
+
+  const calendarRect = calendarElement.getBoundingClientRect();
+  const mouseX = event.clientX - calendarRect.left;
+  const dayWidth = calendarRect.width / 7;
+
+  // Determine which day column the mouse is over
+  const dayIndex = Math.floor(mouseX / dayWidth);
+
+  return dayIndex >= 0 && dayIndex < weekDays.length ? weekDays[dayIndex] : null;
+}
+
+updateEventDate(event: CalendarEvent, targetDay: WeekDay) {
+  // Remove the event from its original location
+  const originalIndex = this.events.findIndex(e => e.id === event.id);
+  if (originalIndex !== -1) {
+    // Update the date while preserving other event details
+    this.events[originalIndex] = {
+      ...this.events[originalIndex],
+      date: targetDay.date
+    };
+
+    // Recalculate activity percentages after moving
+    this.calculateActivityPercentages();
+  }
+}
+
+
+
+finalizeDragDrop(event: MouseEvent) {
+  // Remove dragging class
+  const eventElements = document.querySelectorAll('.event-dragging');
+  eventElements.forEach(el => el.classList.remove('event-dragging'));
+
+  // Remove drag preview
+  if (this.dragPreviewElement) {
+    document.body.removeChild(this.dragPreviewElement);
+    this.dragPreviewElement = null;
+  }
+
+  // Existing drag drop logic...
+  const targetDay = this.findTargetDay(event);
+
+  if (targetDay) {
+    this.updateEventDate(this.draggedEvent!, targetDay);
+  }
+
+  this.isDragging = false;
+  this.draggedEvent = null;
+  this.cdr.detectChanges();
+}
+
 getEventsForDay(weekDay: WeekDay): CalendarEvent[] {
   return this.events.filter(event => {
     const eventDate = new Date(event.date);
@@ -386,7 +470,6 @@ getEventsForDay(weekDay: WeekDay): CalendarEvent[] {
            eventDate.getFullYear() === weekDay.date.getFullYear();
   });
 }
-
 
 hasEventAtHour(weekDay: WeekDay, hour: number): CalendarEvent | null {
   const events = this.getEventsForDay(weekDay);
@@ -413,9 +496,6 @@ private getHourFromTimeString(timeString: string): number {
 
   return hours;
 }
-
-
-
 
 isEventInHour(event: CalendarEvent, hour: number): boolean {
   const startHour = this.getHourFromTimeString(event.startTime);
@@ -444,87 +524,15 @@ getEventStyle(event: CalendarEvent): any {
     padding: '4px',
     zIndex: 1,
     overflow: 'hidden',
-    cursor: 'grabbing',
-    margin: '0',
+    cursor: 'grab',
+    userSelect: 'none',
+    margin: '0'
   };
 }
 
  formatEventTime(event: CalendarEvent): string {
     return `${event.startTime} - ${event.endTime}`;
   }
-
-onDragStart(event: DragEvent, calendarEvent: CalendarEvent): void {
-  if (event.dataTransfer) {
-    this.draggedEventId = calendarEvent.id;
-    event.dataTransfer.setData('application/json', JSON.stringify(calendarEvent));
-    
-    // Añadir una clase al elemento que se está arrastrando
-    const element = event.target as HTMLElement;
-    element.classList.add('dragging');
-  }
-}
-
-onDragOver(event: DragEvent, date: Date): void {
-  event.preventDefault();
-  event.stopPropagation();
-  
-  // Añadir una clase visual al día sobre el que estamos arrastrando
-  const element = event.currentTarget as HTMLElement;
-  element.classList.add('drag-over');
-}
-
-onDragLeave(event: DragEvent): void {
-  // Remover la clase visual cuando el elemento sale de la zona
-  const element = event.currentTarget as HTMLElement;
-  element.classList.remove('drag-over');
-}
-
-onDragEnd(event: DragEvent): void {
-  // Limpiar clases y estado cuando termina el arrastre
-  const element = event.target as HTMLElement;
-  element.classList.remove('dragging');
-  this.draggedEventId = null;
-}
-
-onDrop(event: DragEvent, targetDate: Date, hour: number): void {
-  event.preventDefault();
-  event.stopPropagation();
-
-  // Remover la clase visual
-  const element = event.currentTarget as HTMLElement;
-  element.classList.remove('drag-over');
-
-  try {
-    const eventData = event.dataTransfer?.getData('application/json');
-    if (!eventData) return;
-
-    const draggedEvent = JSON.parse(eventData) as CalendarEvent;
-    const eventIndex = this.events.findIndex(e => e.id === draggedEvent.id);
-    
-    if (eventIndex !== -1) {
-      // Crear una nueva fecha manteniendo la hora original
-      const originalDate = new Date(this.events[eventIndex].date);
-      const newDate = new Date(targetDate);
-      newDate.setHours(originalDate.getHours());
-      newDate.setMinutes(originalDate.getMinutes());
-
-      // Actualizar el evento
-      this.events[eventIndex] = {
-        ...this.events[eventIndex],
-        date: newDate
-      };
-
-      this.cdr.detectChanges();
-    }
-  } catch (error) {
-    console.error('Error al mover el evento:', error);
-  }
-}
-
-
-
-
-
 
   getWeekRange(): string {
     const startOfWeek = this.getStartOfWeek(this.currentDate);
@@ -581,7 +589,6 @@ onDrop(event: DragEvent, targetDate: Date, hour: number): void {
     return weekDays;
   }
 
-
 // Método para obtener el nombre del día
 getDayName(dayIndex: number): string {
   const daysOfWeek = [
@@ -605,11 +612,6 @@ generateAvailableTimes(): void {
   this.availableTimes = times;
 }
 
-
-
-
-
-
 onDateClick(event: Event): void {
   const inputElement = event.target as HTMLInputElement;
   const selectedValue = inputElement.value;
@@ -618,9 +620,6 @@ onDateClick(event: Event): void {
   this.day = this.formatDate(selectedDate);
 }
 
-
-
-
 // Métodos actualizados
 onDateChange(event: any): void {
   const selectedValue = event.target.value;
@@ -628,9 +627,6 @@ onDateChange(event: any): void {
   this.selectedDate = new Date(year, month - 1, day); // Removemos UTC
   this.day = selectedValue;
 }
-
-
-
 
 onStartTimeChange(value: string): void {
   this.selectedStartTime = value;
@@ -735,5 +731,6 @@ private calculateActivityPercentages(): void {
   this.cdr.detectChanges();
 }
 
-
 }
+
+
