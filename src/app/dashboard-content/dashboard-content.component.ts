@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import Swal from 'sweetalert2';
 
 interface CalendarEvent {
   id: string;
@@ -42,9 +43,18 @@ export class DashboardContentComponent implements OnInit {
   draggedEvent: CalendarEvent | null = null;
   dragStartPosition: { x: number, y: number } = { x: 0, y: 0 };
   dragPreviewElement: HTMLDivElement | null = null;
-  
+  dragStartHour: number | null = null;
+  dragStartY: number = 0;
+  hourHeight: number = 82;
   draggedEventId: string | null = null;
+
   
+
+  private dragStartX: number = 0;
+  private originalDayIndex: number = -1;
+  private dayWidth: number = 0;
+  private validDropZone: boolean = false;
+
 
   currentDate: Date;
   currentMonthName: string;
@@ -52,7 +62,7 @@ export class DashboardContentComponent implements OnInit {
   calendarDays: { day: number, isCurrentMonth: boolean, isHoliday: boolean }[][] = [];
   day: any;
   time: string = '';
-endDay: string = '';
+  endDay: string = '';
 
  // Variables para el horario del evento
   availableTimes: string[] = [];
@@ -321,7 +331,15 @@ onDayClick(day: any) {
 
 submitForm(): void {
   if (!this.eventName || !this.activityType || !this.selectedDate || !this.selectedStartTime || !this.selectedEndTime) {
-    alert('Por favor, complete todos los campos.');
+    Swal.fire({
+      toast: true,
+      position: 'top',
+      icon: 'warning',
+      title: 'Por favor, complete todos los campos.',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true
+    });
     return;
   }
 
@@ -344,7 +362,15 @@ submitForm(): void {
 
   // Verificar que la hora de fin sea posterior a la hora de inicio
   if (endMinutes <= startMinutes) {
-    alert('La hora de finalización debe ser posterior a la hora de inicio.');
+    Swal.fire({
+      toast: true,
+      position: 'top',
+      icon: 'error',
+      title: 'La hora de finalización debe ser posterior a la de inicio.',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true
+    });
     return;
   }
 
@@ -357,7 +383,16 @@ submitForm(): void {
 
   // Verificar colisión de horarios
   if (this.checkTimeCollision(newEvent)) {
-    alert('Ya existe un evento programado en ese horario. Por favor, seleccione un horario diferente.');
+    Swal.fire({
+      toast: true,
+      position: 'top',
+      icon: 'error',
+      title: '¡Ya existe un evento en ese horario!',
+      text: 'Seleccione un horario libre que no coincida con otro evento.',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true
+    });
     return;
   }
 
@@ -375,6 +410,16 @@ submitForm(): void {
   // Añadir el evento y recalcular porcentajes
   this.events.push(finalEvent);
   this.calculateActivityPercentages();
+
+  Swal.fire({
+    toast: true,
+    position: 'top',
+    icon: 'success',
+    title: 'El evento se registró exitosamente.',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true
+  });
   
   this.closeModal();
   this.cdr.detectChanges();
@@ -397,56 +442,137 @@ closeModal(): void {
 }
 
 @HostListener('document:mousemove', ['$event'])
-onMouseMove(event: MouseEvent) {
-  if (this.isDragging && this.draggedEvent) {
-    event.preventDefault();
-    
-    if (!this.dragPreviewElement) {
-      this.dragPreviewElement = document.createElement('div');
-      this.dragPreviewElement.classList.add('event-drag-preview');
-      this.dragPreviewElement.style.position = 'absolute';
-      this.dragPreviewElement.style.pointerEvents = 'none';
-      this.dragPreviewElement.style.zIndex = '1000';
-      this.dragPreviewElement.style.opacity = '0.7';
-      this.dragPreviewElement.style.backgroundColor = this.typeColors[this.draggedEvent.type].backgroundColor;
-      this.dragPreviewElement.style.border = `2px dashed ${this.typeColors[this.draggedEvent.type].borderColor}`;
-      this.dragPreviewElement.style.padding = '5px';
-      this.dragPreviewElement.style.width = '200px'; // Ancho fijo similar a evento
-      this.dragPreviewElement.style.position = 'absolute';
+  onMouseMove(event: MouseEvent) {
+    if (this.isDragging && this.draggedEvent) {
+      event.preventDefault();
       
-      // Contenido del preview
-      const nameElement = document.createElement('div');
-      nameElement.textContent = this.draggedEvent.name;
+      const mouseY = event.clientY;
+      const mouseX = event.clientX;
+      const deltaY = mouseY - this.dragStartY;
+      const deltaX = mouseX - this.dragStartX;
       
-      const timeElement = document.createElement('div');
-      timeElement.textContent = `${this.draggedEvent.startTime} - ${this.draggedEvent.endTime}`;
-      timeElement.style.fontSize = '0.8em';
-      timeElement.style.color = 'gray';
+      // Calcular nueva hora y día
+      const hourDelta = Math.round(deltaY / this.hourHeight);
+      let newStartHour = this.dragStartHour !== null ? 
+        (this.dragStartHour - 1) + hourDelta : this.BASE_HOUR;
+      newStartHour = Math.max(this.BASE_HOUR, Math.min(this.BASE_HOUR + 20, newStartHour));
+
+      const dayDelta = Math.round(deltaX / this.dayWidth);
+      const newDayIndex = Math.max(0, Math.min(6, this.originalDayIndex + dayDelta));
       
-      this.dragPreviewElement.appendChild(nameElement);
-      this.dragPreviewElement.appendChild(timeElement);
+      // Verificar si la posición es válida
+      const weekDays = this.getWeekDays();
+      const tempEvent = {
+        ...this.draggedEvent,
+        date: weekDays[newDayIndex].date,
+        startTime: this.formatTimeString(newStartHour),
+        endTime: this.formatTimeString(newStartHour + this.calculateEventDuration(this.draggedEvent))
+      };
       
-      document.body.appendChild(this.dragPreviewElement);
+      this.validDropZone = !this.checkTimeCollision(tempEvent);
+      
+      // Actualizar estilos del evento que se está arrastrando
+      const eventElement = document.querySelector('.event-dragging');
+      if (eventElement) {
+        if (this.validDropZone) {
+          eventElement.classList.add('valid-drop');
+          eventElement.classList.remove('invalid-drop');
+        } else {
+          eventElement.classList.add('invalid-drop');
+          eventElement.classList.remove('valid-drop');
+        }
+      }
     }
-
-    // Posicionar preview
-    this.dragPreviewElement.style.left = `${event.clientX + 10}px`;
-    this.dragPreviewElement.style.top = `${event.clientY + 10}px`;
   }
+
+  @HostListener('document:mouseup', ['$event'])
+  onMouseUp(event: MouseEvent) {
+    if (this.isDragging && this.draggedEvent && this.dragStartHour !== null) {
+      const mouseY = event.clientY;
+      const mouseX = event.clientX;
+      const deltaY = mouseY - this.dragStartY;
+      const deltaX = mouseX - this.dragStartX;
+      
+      const hourDelta = Math.round(deltaY / this.hourHeight);
+      const dayDelta = Math.round(deltaX / this.dayWidth);
+      
+      let newStartHour = (this.dragStartHour - 1) + hourDelta;
+      newStartHour = Math.max(this.BASE_HOUR, Math.min(this.BASE_HOUR + 20, newStartHour));
+      
+      const weekDays = this.getWeekDays();
+      const newDayIndex = Math.max(0, Math.min(6, this.originalDayIndex + dayDelta));
+      const newDate = weekDays[newDayIndex].date;
+      
+      const eventIndex = this.events.findIndex(e => e.id === this.draggedEvent!.id);
+      if (eventIndex !== -1 && this.validDropZone) {
+        const duration = this.calculateEventDuration(this.events[eventIndex]);
+        const newStartTime = this.formatTimeString(newStartHour);
+        const newEndTime = this.formatTimeString(newStartHour + duration);
+        
+        this.events[eventIndex] = {
+          ...this.events[eventIndex],
+          date: newDate,
+          startTime: newStartTime,
+          endTime: newEndTime
+        };
+        
+        this.calculateActivityPercentages();
+      }
+      
+      this.finalizeDragDrop();
+    }
+  }
+
+
+  private finalizeDragDrop() {
+    const eventElements = document.querySelectorAll('.event-dragging, .valid-drop, .invalid-drop');
+    eventElements.forEach(el => {
+      el.classList.remove('event-dragging', 'valid-drop', 'invalid-drop');
+    });
+
+    this.isDragging = false;
+    this.draggedEvent = null;
+    this.validDropZone = false;
+    this.dragStartHour = null;
+    this.dragStartY = 0;
+    this.dragStartX = 0;
+    this.originalDayIndex = -1;
+    this.cdr.detectChanges();
+  }
+
+// Método auxiliar para formatear la hora
+private formatTimeString(hour: number): string {
+  const adjustedHour = hour % 24;
+  const isPM = adjustedHour >= 12;
+  const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
+  return `${displayHour.toString().padStart(2, '0')}:00 ${isPM ? 'PM' : 'AM'}`;
 }
 
-@HostListener('document:mouseup', ['$event'])
-onMouseUp(event: MouseEvent) {
-  if (this.isDragging && this.draggedEvent) {
-    this.finalizeDragDrop(event);
-  }
-}
 
 startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
   event.preventDefault();
   this.isDragging = true;
   this.draggedEvent = { ...calendarEvent };
+  
+  // Almacenar posiciones iniciales
+  this.dragStartX = event.clientX;
+  this.dragStartY = event.clientY;
+  this.dragStartHour = this.timeStringToHour(calendarEvent.startTime) + 1;
 
+  // Calcular índice del día original
+  const weekDays = this.getWeekDays();
+  const eventDate = new Date(calendarEvent.date);
+  this.originalDayIndex = weekDays.findIndex(day => 
+    day.date.toDateString() === eventDate.toDateString()
+  );
+
+  // Calcular ancho del día
+  const calendarElement = document.querySelector('.calendar');
+  if (calendarElement) {
+    this.dayWidth = calendarElement.getBoundingClientRect().width / 7;
+  }
+
+  // Añadir clase de arrastre
   const eventElement = event.target as HTMLElement;
   eventElement.classList.add('event-dragging');
 }
@@ -476,27 +602,7 @@ updateEventDate(event: CalendarEvent, targetDay: WeekDay) {
   }
 }
 
-finalizeDragDrop(event: MouseEvent) {
 
-  const eventElements = document.querySelectorAll('.event-dragging');
-  eventElements.forEach(el => el.classList.remove('event-dragging'));
-
-
-  if (this.dragPreviewElement) {
-    document.body.removeChild(this.dragPreviewElement);
-    this.dragPreviewElement = null;
-  }
-
-  const targetDay = this.findTargetDay(event);
-
-  if (targetDay) {
-    this.updateEventDate(this.draggedEvent!, targetDay);
-  }
-
-  this.isDragging = false;
-  this.draggedEvent = null;
-  this.cdr.detectChanges();
-}
 
 getEventsForDay(weekDay: WeekDay): CalendarEvent[] {
   return this.events.filter(event => {
@@ -792,9 +898,6 @@ private calculateActivityPercentages(): void {
   // Forzar actualización de la vista
   this.cdr.detectChanges();
 }
-
-
-
 }
 
 
