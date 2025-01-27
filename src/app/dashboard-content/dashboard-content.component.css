@@ -359,7 +359,7 @@ body {
     overflow: hidden;
     border-radius: 8px;
     margin-top: 10px;
-  grid-area: calendar;
+    grid-area: calendar;
   }
 
 
@@ -376,8 +376,8 @@ body {
     max-height: 750px; /* Mantiene la altura máxima especificada */
     border-radius: 8px;
     background-color: #Fff;
-box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-border: 1px solid #ddd;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border: 1px solid #ddd;
  
   }
   
@@ -500,7 +500,7 @@ border: 1px solid #ddd;
     display: flex;
   flex-direction: column;
   justify-content: space-between;
-    font-size: 0.9rem;
+  font-size: clamp(14px, 2vh, 32px);
     border: none;
     box-sizing: border-box;
     pointer-events: all;
@@ -508,9 +508,20 @@ border: 1px solid #ddd;
   }
 
   .event-times {
-    font-size: 0.9rem;
+    font-size: clamp(14px, 1vh, 32px);
 
 }
+
+.temp-event {
+  position: absolute;
+  background-color: rgba(59, 130, 246, 0.3);
+  border: 2px dashed #3b82f6;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+
 
   
   .event:hover {
@@ -533,7 +544,8 @@ border: 1px solid #ddd;
   bottom: 0;
 }
   
-  
+
+
   
 
 /* =================
