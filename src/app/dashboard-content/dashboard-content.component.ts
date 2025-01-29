@@ -48,6 +48,10 @@ export class DashboardContentComponent implements OnInit {
   hourHeight: number = 82;
   draggedEventId: string | null = null;
 
+isDragCreating: boolean = false;
+dragStartCell: { day: number, hour: number } | null = null;
+dragEndCell: { day: number, hour: number } | null = null;
+temporaryEventElement: HTMLDivElement | null = null;
   
 
   private dragStartX: number = 0;
@@ -73,10 +77,12 @@ export class DashboardContentComponent implements OnInit {
 
   private typeColors: { [key: string]: { backgroundColor: string, borderColor: string } } = {
     'estrategica': { backgroundColor: '#EFD9D9', borderColor: '#EF0A06' },
-    'administrativa': {  backgroundColor: '#D8EDD7', borderColor: '#0AD600' },
+    'administrativa': { backgroundColor: '#D8EDD7', borderColor: '#0AD600' },
     'operativa': { backgroundColor: '#CADCF4', borderColor: '#086CF0' },
-    'personal': { backgroundColor: '#E4E4E4', borderColor: '#747474' }
+    'personal': { backgroundColor: '#E4E4E4', borderColor: '#747474' },
+    'perso': { backgroundColor: '#E9F5FA', borderColor: '#000000' } // Asegura un valor válido
   };
+  
   
 
   // Variables para el modal
@@ -290,15 +296,27 @@ export class DashboardContentComponent implements OnInit {
   
  // Método para abrir el modal
  openCreateEventModal(): void {
-  // Resetear solo los campos que no son la fecha
+  // Resetear solo los campos que no son fecha ni hora si vienen del drag
   this.eventName = '';
   this.activityType = '';
-  this.selectedStartTime = '';
-  this.selectedEndTime = '';
-  this.time = '';
-  this.endDay = '';
+  
+  // Solo resetear las horas si no vienen del drag
+  if (!this.isDragCreating) {
+    this.selectedStartTime = '';
+    this.selectedEndTime = '';
+    this.time = '';
+    this.endDay = '';
+  }
   
   this.isModalOpen = true;
+}
+// Asegurarse de que el resetForm no se llame al cerrar si venimos del drag
+closeModal(): void {
+  this.isModalOpen = false;
+  if (!this.isDragCreating) {
+    this.resetForm();
+  }
+  this.isDragCreating = false; // Resetear el flag de drag
 }
 
 // Métodos para el modal
@@ -436,10 +454,7 @@ resetForm(): void {
   this.day = '';
 }
 
-closeModal(): void {
-  this.isModalOpen = false;
-  this.resetForm();
-}
+
 
 @HostListener('document:mousemove', ['$event'])
   onMouseMove(event: MouseEvent) {
@@ -897,6 +912,214 @@ private calculateActivityPercentages(): void {
 
   // Forzar actualización de la vista
   this.cdr.detectChanges();
+}
+
+@HostListener('mousedown', ['$event'])
+onCalendarMouseDown(event: MouseEvent) {
+  // Verificar si el modal está abierto
+  if (this.isModalOpen) {
+    return; // No hacer nada si el modal está abierto
+  }
+
+  const cell = this.findTimeCell(event);
+  if (cell && !this.isDragging) {
+    this.isDragCreating = true;
+    this.dragStartCell = cell;
+    this.createTemporaryEvent(event);
+    event.preventDefault();
+  }
+}
+
+@HostListener('mousemove', ['$event'])
+onCalendarMouseMove(event: MouseEvent) {
+  // Verificar si el modal está abierto
+  if (this.isModalOpen) {
+    return; // No hacer nada si el modal está abierto
+  }
+
+  if (this.isDragCreating && this.dragStartCell) {
+    const cell = this.findTimeCell(event);
+    if (cell) {
+      this.dragEndCell = {
+        day: this.dragStartCell.day,
+        hour: cell.hour
+      };
+      this.updateTemporaryEvent();
+    }
+  }
+}
+
+@HostListener('mouseup', ['$event'])
+onCalendarMouseUp(event: MouseEvent) {
+  if (this.isDragCreating && this.dragStartCell && this.dragEndCell) {
+    const weekDays = this.getWeekDays();
+    const selectedDate = weekDays[this.dragStartCell.day].date;
+    
+    // Calcular horas de inicio y fin, ajustando para que coincida con isEventInHour
+    const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour) - 1 ; // Restar 1 para compensar
+    const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour);
+    
+    // Configurar valores para el modal
+    this.selectedDate = selectedDate;
+    this.day = this.formatDate(selectedDate);
+    this.selectedStartTime = this.formatTimeString(startHour);
+    this.selectedEndTime = this.formatTimeString(endHour);
+    this.time = this.selectedStartTime;
+    this.endDay = this.selectedEndTime;
+    
+    this.openCreateEventModal();
+  }
+  
+  this.cleanupDragCreate();
+}
+
+private findTimeCell(event: MouseEvent): { day: number, hour: number } | null {
+  const calendarGrid = document.querySelector('.calendar');
+  if (!calendarGrid) return null;
+
+  const rect = calendarGrid.getBoundingClientRect();
+  const calendarScrollTop = (calendarGrid as Element).scrollTop || 0;
+  const windowScrollY = window.scrollY;
+  
+  // Encontrar el elemento específico donde ocurrió el evento
+  let target = event.target as HTMLElement;
+  while (target && !target.classList.contains('hour')) {
+    target = target.parentElement as HTMLElement;
+  }
+
+  if (!target) return null;
+
+  const dayIndex = parseInt(target.getAttribute('data-day-index') || '-1');
+  const hour = parseInt(target.getAttribute('data-hour') || '-1');
+
+  if (dayIndex === -1 || hour === -1) return null;
+
+  const timeColumnWidth = 60;
+  const headerHeight = 80;
+  
+  // Calcular los límites del contenedor
+  const containerTop = rect.top + headerHeight;
+  const containerBottom = rect.bottom;
+
+  // Verificar si el evento está dentro de los límites verticales del contenedor
+  if (event.clientY < containerTop || event.clientY > containerBottom) {
+    return null;
+  }
+
+  const x = event.clientX - rect.left - timeColumnWidth;
+  const y = event.clientY - rect.top + calendarScrollTop + windowScrollY;
+  const adjustedY = y - headerHeight;
+  
+  if (
+    dayIndex >= 0 && 
+    dayIndex < 7 && 
+    hour >= this.BASE_HOUR && 
+    hour < this.BASE_HOUR + 21 && 
+    adjustedY >= 0
+  ) {
+    return { day: dayIndex, hour };
+  }
+
+  return null;
+}
+
+private createTemporaryEvent(event: MouseEvent) {
+  if (!this.dragStartCell) return;
+
+  this.temporaryEventElement = document.createElement('div');
+  this.temporaryEventElement.className = 'temporary-event';
+  document.body.appendChild(this.temporaryEventElement);
+  this.updateTemporaryEvent();
+}
+
+private updateTemporaryEvent() {
+  if (!this.temporaryEventElement || !this.dragStartCell || !this.dragEndCell) return;
+
+  const calendarGrid = document.querySelector('.calendar');
+  if (!calendarGrid) return;
+
+  const rect = calendarGrid.getBoundingClientRect();
+  const calendarScrollTop = (calendarGrid as Element).scrollTop || 0;
+  const windowScrollY = window.scrollY;
+  const timeColumnWidth = 60;
+  
+  const day = this.dragStartCell.day;
+  const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour);
+  const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour);
+  
+  const dayWidth = (rect.width - timeColumnWidth) / 7;
+  
+  // Obtener el elemento del día específico
+  const dayColumn = document.querySelector(`[data-day-index="${day}"]`);
+  let left = rect.left + timeColumnWidth;
+  
+  if (dayColumn) {
+    const dayRect = dayColumn.getBoundingClientRect();
+    left = dayRect.left;
+  } else {
+    left = rect.left + timeColumnWidth + (day * Math.floor(dayWidth));
+  }
+  
+  const headerHeight = 80;
+  const topOffset = ((startHour - this.BASE_HOUR) * this.hourHeight) + headerHeight - calendarScrollTop;
+  const adjustedTop = rect.top + topOffset + windowScrollY;
+  const height = (endHour - startHour + 1) * this.hourHeight;
+
+  // Calcular los límites del contenedor
+  const containerTop = rect.top + headerHeight;
+  const containerBottom = rect.bottom;
+  const containerScrollHeight = (calendarGrid as Element).scrollHeight;
+  const maxVisibleHeight = containerBottom - containerTop;
+
+  // Ajustar la posición y altura si se excede de los límites
+  let finalTop = adjustedTop - windowScrollY;
+  let finalHeight = height;
+
+  // Ajustar si se excede por arriba
+  if (finalTop < containerTop) {
+    const difference = containerTop - finalTop;
+    finalTop = containerTop;
+    finalHeight -= difference;
+  }
+
+  // Ajustar si se excede por abajo
+  if (finalTop + finalHeight > containerBottom) {
+    finalHeight = containerBottom - finalTop;
+  }
+
+  // No mostrar el evento si está completamente fuera de los límites visibles
+  if (finalHeight <= 0) {
+    this.temporaryEventElement.style.display = 'none';
+    return;
+  }
+
+  Object.assign(this.temporaryEventElement.style, {
+    position: 'fixed',
+    left: `${left}px`,
+    top: `${finalTop}px`,
+    width: `${Math.floor(dayWidth)}px`,
+    height: `${Math.max(0, finalHeight)}px`,
+    backgroundColor: this.typeColors['perso'].backgroundColor,
+    borderLeft: `8px solid ${this.typeColors['perso'].borderColor}`,
+    margin: '0',
+    padding: '4px',
+    pointerEvents: 'none',
+    zIndex: '1000',
+    opacity: '0.7',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+    display: 'block'
+  });
+}
+
+private cleanupDragCreate() {
+  if (this.temporaryEventElement) {
+    this.temporaryEventElement.remove();
+    this.temporaryEventElement = null;
+  }
+  this.isDragCreating = false;
+  this.dragStartCell = null;
+  this.dragEndCell = null;
 }
 }
 

@@ -494,6 +494,7 @@ body {
     height: 80px;
     padding: 0;
     margin: 0;
+    transition: background-color 0.2s ease;
   }
   
   .event {
@@ -512,21 +513,15 @@ body {
 
 }
 
-.temp-event {
-  position: absolute;
-  background-color: rgba(59, 130, 246, 0.3);
-  border: 2px dashed #3b82f6;
-  border-radius: 4px;
-  pointer-events: none;
-  z-index: 100;
+.hour:hover {
+  background-color: rgba(130, 152, 225, 0.1);
 }
 
-
-
-  
-  .event:hover {
-    opacity: 0.9;
-  }
+.temporary-event {
+  transition: all 0.1s ease-out;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
 
   .event-resize-top, 
 .event-resize-bottom {
