@@ -523,23 +523,27 @@ body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-  .event-resize-top, 
-.event-resize-bottom {
+
+.resize-handle {
   position: absolute;
   left: 0;
   right: 0;
-  height: 10px;
+  height: 6px;
   cursor: ns-resize;
-  z-index: 10;
+  z-index: 2;
 }
-.event-resize-top {
-  top: 0;
-}
-.event-resize-bottom {
-  bottom: 0;
-}
-  
 
+.resize-handle.top {
+  top: -3px;
+}
+
+.resize-handle.bottom {
+  bottom: -3px;
+}
+
+.event:hover .resize-handle {
+  background-color: rgba(0, 0, 0, 0.1);
+}
 
   
 
