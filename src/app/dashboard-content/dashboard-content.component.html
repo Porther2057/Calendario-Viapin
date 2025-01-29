@@ -259,32 +259,40 @@
       <div class="calendar">
         <!-- Header -->
         <div class="time"></div>
-        <div class="day" *ngFor="let weekDay of getWeekDays(); let i = index">
-          {{weekDay.name.substring(0,3)}}<br>
-          <span class="day-number" [ngClass]="{'today': weekDay.isToday}">{{ weekDay.day }}</span>
-        </div>
-      
-        <!-- Time Slots -->
-        <ng-container *ngFor="let hour of [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0]">
-          <div class="time"><span>{{hour}}:00</span></div>
-          <div class="hour day-column" 
-               *ngFor="let weekDay of getWeekDays(); let dayIndex = index"
-               [attr.data-day-index]="dayIndex"
-               [attr.data-hour]="hour">
-            <ng-container *ngFor="let event of getEventsForDay(weekDay)">
-              <div class="event"
-                   *ngIf="isEventInHour(event, hour)"
-                   [ngStyle]="getEventStyle(event)"
-                   [title]="event.name"
-                   (mousedown)="startDragEvent($event, event)">
-                <div>{{ event.name }}</div>
-                <div style="flex-grow: 1"></div>
-                <div class="event-times">{{ event.startTime }} - {{ event.endTime }}</div>
-              </div>
-            </ng-container>
-          </div>
-        </ng-container>
+        <div class="day">LUN<br><span class="day-number" [ngClass]="{'today': getWeekDays()[0].isToday}">{{ getWeekDays()[0].day }}</span></div>
+        <div class="day">MAR<br><span class="day-number" [ngClass]="{'today': getWeekDays()[1].isToday}">{{ getWeekDays()[1].day }}</span></div>
+        <div class="day">MIE<br><span class="day-number" [ngClass]="{'today': getWeekDays()[2].isToday}">{{ getWeekDays()[2].day }}</span></div>
+        <div class="day">JUE<br><span class="day-number" [ngClass]="{'today': getWeekDays()[3].isToday}">{{ getWeekDays()[3].day }}</span></div>
+        <div class="day">VIE<br><span class="day-number" [ngClass]="{'today': getWeekDays()[4].isToday}">{{ getWeekDays()[4].day }}</span></div>
+        <div class="day">SAB<br><span class="day-number" [ngClass]="{'today': getWeekDays()[5].isToday}">{{ getWeekDays()[5].day }}</span></div>
+        <div class="day">DOM<br><span class="day-number" [ngClass]="{'today': getWeekDays()[6].isToday}">{{ getWeekDays()[6].day }}</span></div>
+
+   
+  <!-- Time Slots -->
+ <!-- Time Slots -->
+<ng-container *ngFor="let hour of [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0]">
+  <div class="time"><span>{{hour}}:00</span></div>
+  <div class="hour day-column" 
+       *ngFor="let weekDay of getWeekDays(); let dayIndex = index"
+       [attr.data-day-index]="dayIndex"
+       [attr.data-hour]="hour">
+    <ng-container *ngFor="let event of getEventsForDay(weekDay)">
+      <div class="event"
+           *ngIf="isEventInHour(event, hour)"
+           [ngStyle]="getEventStyle(event)"
+           [attr.data-event-id]="event.id"
+           [title]="event.name"
+           (mousedown)="startDragEvent($event, event)">
+        <div class="resize-handle top" (mousedown)="startResize($event, event, 'top')"></div>
+        <div>{{ event.name }}</div>
+        <div style="flex-grow: 1"></div>
+        <div class="event-times">{{ event.startTime }} - {{ event.endTime }}</div>
+        <div class="resize-handle bottom" (mousedown)="startResize($event, event, 'bottom')"></div>
       </div>
+    </ng-container>
+  </div>
+</ng-container>
+</div>
       </div>
   </div>
 
