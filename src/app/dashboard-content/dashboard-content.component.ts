@@ -101,6 +101,7 @@ export class DashboardContentComponent implements OnInit {
   selectedDate: Date | null = null;
   selectedStartTime: string = '';
   selectedEndTime: string = '';
+  private originalEventDuration: number = 0;
 
    //  para los porcentajes
    activityPercentages: ActivityStats = {
@@ -564,7 +565,7 @@ onMouseMove(event: MouseEvent) {
         this.cdr.detectChanges();
       }
     }
-  } else if (this.isDragging && this.draggedEvent) {
+  } else if (this.isDragging && this.draggedEvent && this.dragStartHour !== null) {
     event.preventDefault();
     
     const mouseY = event.clientY;
@@ -572,25 +573,20 @@ onMouseMove(event: MouseEvent) {
     const deltaY = mouseY - this.dragStartY;
     const deltaX = mouseX - this.dragStartX;
     
-    // Obtener los minutos originales del evento
-    const getMinutesFromTime = (timeString: string): number => {
-      const [time] = timeString.split(' ');
-      return parseInt(time.split(':')[1]);
-    };
-    
-    const originalStartMinutes = getMinutesFromTime(this.draggedEvent.startTime);
-    const originalEndMinutes = getMinutesFromTime(this.draggedEvent.endTime);
-    
-    // Calcular nueva hora y día manteniendo los minutos originales
+    // Calcular nueva hora manteniendo los minutos originales
     const hourDelta = Math.round(deltaY / this.hourHeight);
-    let newStartHour = this.dragStartHour !== null ? 
-      (this.dragStartHour - 1) + hourDelta : this.BASE_HOUR;
+    let newStartHour = this.dragStartHour + hourDelta;
     newStartHour = Math.max(this.BASE_HOUR, Math.min(this.BASE_HOUR + 20, newStartHour));
 
     const dayDelta = Math.round(deltaX / this.dayWidth);
+    const weekDays = this.getWeekDays();
     const newDayIndex = Math.max(0, Math.min(6, this.originalDayIndex + dayDelta));
+    const newDate = weekDays[newDayIndex].date;
     
-    // Formatear las horas manteniendo los minutos
+    // Mantener los minutos originales
+    const [startMinutes, endMinutes] = this.getEventMinutes(this.draggedEvent);
+    
+    // Formatear las horas manteniendo los minutos y la duración original
     const formatTimeWithMinutes = (hour: number, minutes: number): string => {
       const adjustedHour = hour % 24;
       const isPM = adjustedHour >= 12;
@@ -598,13 +594,12 @@ onMouseMove(event: MouseEvent) {
       return `${displayHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
     };
 
-    // Verificar si la posición es válida
-    const weekDays = this.getWeekDays();
+    // Crear evento temporal para verificar colisión
     const tempEvent = {
       ...this.draggedEvent,
-      date: weekDays[newDayIndex].date,
-      startTime: formatTimeWithMinutes(newStartHour, originalStartMinutes),
-      endTime: formatTimeWithMinutes(newStartHour + this.calculateEventDuration(this.draggedEvent), originalEndMinutes)
+      date: newDate,
+      startTime: formatTimeWithMinutes(newStartHour, startMinutes),
+      endTime: formatTimeWithMinutes(newStartHour + this.originalEventDuration, endMinutes)
     };
     
     this.validDropZone = !this.checkTimeCollision(tempEvent);
@@ -632,6 +627,18 @@ onMouseMove(event: MouseEvent) {
   }
 }
 
+// Método auxiliar para obtener los minutos de inicio y fin
+private getEventMinutes(event: CalendarEvent): [number, number] {
+  const getMinutes = (timeString: string): number => {
+    return parseInt(timeString.split(':')[1].split(' ')[0]);
+  };
+  
+  return [
+    getMinutes(event.startTime),
+    getMinutes(event.endTime)
+  ];
+}
+
 @HostListener('document:mouseup', ['$event'])
 onMouseUp(event: MouseEvent) {
   if (this.isResizing) {
@@ -645,15 +652,29 @@ onMouseUp(event: MouseEvent) {
     const deltaY = mouseY - this.dragStartY;
     const deltaX = mouseX - this.dragStartX;
     
-    // Obtener los minutos originales
-    const getMinutesFromTime = (timeString: string): number => {
-      const [time] = timeString.split(' ');
-      return parseInt(time.split(':')[1]);
+    // Obtener los minutos originales y la duración exacta
+    const getMinutesFromTime = (timeString: string): { hours: number, minutes: number } => {
+      const [time, period] = timeString.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+      
+      return { hours, minutes };
     };
     
-    const originalStartMinutes = getMinutesFromTime(this.draggedEvent.startTime);
-    const originalEndMinutes = getMinutesFromTime(this.draggedEvent.endTime);
+    const startTime = getMinutesFromTime(this.draggedEvent.startTime);
+    const endTime = getMinutesFromTime(this.draggedEvent.endTime);
     
+    // Calcular la duración exacta en minutos
+    const durationMinutes = 
+      ((endTime.hours * 60 + endTime.minutes) - 
+       (startTime.hours * 60 + startTime.minutes));
+    
+    // Calcular nueva hora manteniendo los minutos originales
     const hourDelta = Math.round(deltaY / this.hourHeight);
     let newStartHour = (this.dragStartHour - 1) + hourDelta;
     newStartHour = Math.max(this.BASE_HOUR, Math.min(this.BASE_HOUR + 20, newStartHour));
@@ -663,20 +684,29 @@ onMouseUp(event: MouseEvent) {
     const newDayIndex = Math.max(0, Math.min(6, this.originalDayIndex + dayDelta));
     const newDate = weekDays[newDayIndex].date;
     
-    // Función para formatear tiempo con minutos
-    const formatTimeWithMinutes = (hour: number, minutes: number): string => {
-      const adjustedHour = hour % 24;
+    // Función para formatear tiempo preservando minutos exactos
+    const formatTimeWithExactMinutes = (hours: number, minutes: number): string => {
+      const adjustedHour = hours % 24;
       const isPM = adjustedHour >= 12;
       const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
       return `${displayHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
     };
     
+    // Calcular tiempo de finalización basado en la duración original
+    const newStartTotalMinutes = newStartHour * 60 + startTime.minutes;
+    const newEndTotalMinutes = newStartTotalMinutes + durationMinutes;
+    
+    const newStartTime = formatTimeWithExactMinutes(
+      Math.floor(newStartTotalMinutes / 60),
+      newStartTotalMinutes % 60
+    );
+    const newEndTime = formatTimeWithExactMinutes(
+      Math.floor(newEndTotalMinutes / 60),
+      newEndTotalMinutes % 60
+    );
+    
     const eventIndex = this.events.findIndex(e => e.id === this.draggedEvent!.id);
     if (eventIndex !== -1 && this.validDropZone) {
-      const duration = this.calculateEventDuration(this.events[eventIndex]);
-      const newStartTime = formatTimeWithMinutes(newStartHour, originalStartMinutes);
-      const newEndTime = formatTimeWithMinutes(newStartHour + duration, originalEndMinutes);
-      
       this.events[eventIndex] = {
         ...this.events[eventIndex],
         date: newDate,
@@ -692,11 +722,9 @@ onMouseUp(event: MouseEvent) {
     const weekDays = this.getWeekDays();
     const selectedDate = weekDays[this.dragStartCell.day].date;
     
-    // Calcular horas de inicio y fin, ajustando para que coincida con isEventInHour
     const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour) - 1;
     const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour);
     
-    // Configurar valores para el modal
     this.selectedDate = selectedDate;
     this.day = this.formatDate(selectedDate);
     this.selectedStartTime = this.formatTimeString(startHour);
@@ -742,7 +770,12 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
   // Almacenar posiciones iniciales
   this.dragStartX = event.clientX;
   this.dragStartY = event.clientY;
-  this.dragStartHour = this.timeStringToHour(calendarEvent.startTime) + 1;
+  this.dragStartHour = this.timeStringToHour(calendarEvent.startTime);
+
+  // Calcular y almacenar la duración original del evento
+  const startMinutes = this.timeStringToMinutes(calendarEvent.startTime);
+  const endMinutes = this.timeStringToMinutes(calendarEvent.endTime);
+  this.originalEventDuration = (endMinutes - startMinutes) / 60; // Duración en horas
 
   // Calcular índice del día original
   const weekDays = this.getWeekDays();
@@ -1041,9 +1074,10 @@ private timeStringToHour(timeString: string): number {
 }
 
 private calculateEventDuration(event: CalendarEvent): number {
-  const startHour = this.timeStringToHour(event.startTime);
-  const endHour = this.timeStringToHour(event.endTime);
-  return endHour - startHour;
+  const startMinutes = this.timeStringToMinutes(event.startTime);
+  const endMinutes = this.timeStringToMinutes(event.endTime);
+  // Retorna la duración en horas (como número decimal)
+  return (endMinutes - startMinutes) / 60;
 }
 
 // Método para calcular los porcentajes
@@ -1282,6 +1316,19 @@ private updateTemporaryEvent() {
     overflow: 'hidden',
     display: 'block'
   });
+}
+
+private timeStringToMinutes(timeString: string): number {
+  const [time, period] = timeString.split(' ');
+  let [hours, minutes] = time.split(':').map(Number);
+  
+  if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'AM' && hours === 12) {
+    hours = 0;
+  }
+  
+  return hours * 60 + minutes;
 }
 
 private cleanupDragCreate() {
