@@ -484,8 +484,7 @@ onMouseMove(event: MouseEvent) {
     event.preventDefault();
     
     const deltaY = event.clientY - this.resizeStartY;
-    // Cambiar el cálculo para usar intervalos de 15 minutos
-    const quarterHourHeight = this.hourHeight / 4; // Altura de un intervalo de 15 minutos
+    const quarterHourHeight = this.hourHeight / 4;
     const quarterHourDelta = Math.round(deltaY / quarterHourHeight);
     
     const getMinutesFromTime = (timeString: string): number => {
@@ -497,37 +496,40 @@ onMouseMove(event: MouseEvent) {
     };
     
     const formatTimeWithMinutes = (totalMinutes: number): string => {
-      let hours = Math.floor(totalMinutes / 60);
+      const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
       const isPM = hours >= 12;
-      hours = hours % 12 || 12;
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
+      const displayHours = hours % 12 || 12;
+      return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
     };
     
-    const startMinutes = getMinutesFromTime(this.resizingEvent.startTime);
-    const endMinutes = getMinutesFromTime(this.resizingEvent.endTime);
+    // Obtener los minutos originales del evento actual
+    const currentStartMinutes = getMinutesFromTime(this.resizingEvent.startTime);
+    const currentEndMinutes = getMinutesFromTime(this.resizingEvent.endTime);
     
-    let newStartMinutes = startMinutes;
-    let newEndMinutes = endMinutes;
+    // Calcular los nuevos tiempos basados en el tipo de redimensionamiento
+    let newStartMinutes = currentStartMinutes;
+    let newEndMinutes = currentEndMinutes;
     
-    // Ajustar los minutos basado en intervalos de 15 minutos
     if (this.resizeType === 'top') {
-      newStartMinutes = startMinutes + (quarterHourDelta * 15);
-      // Asegurar que la hora de inicio no vaya más allá de la hora de fin o antes de BASE_HOUR
-      const minStartMinutes = this.BASE_HOUR * 60;
-      const maxStartMinutes = endMinutes - 15;
-      newStartMinutes = Math.max(minStartMinutes, Math.min(maxStartMinutes, newStartMinutes));
-      // Ajustar a intervalos de 15 minutos
-      newStartMinutes = Math.round(newStartMinutes / 15) * 15;
+      newStartMinutes = currentStartMinutes + (quarterHourDelta * 15);
+      // Limitar el tiempo de inicio
+      newStartMinutes = Math.max(
+        this.BASE_HOUR * 60,
+        Math.min(currentEndMinutes - 15, newStartMinutes)
+      );
     } else {
-      newEndMinutes = endMinutes + (quarterHourDelta * 15);
-      // Asegurar que la hora de fin no vaya antes de la hora de inicio o después del máximo
-      const minEndMinutes = startMinutes + 15;
-      const maxEndMinutes = (this.BASE_HOUR + 21) * 60;
-      newEndMinutes = Math.max(minEndMinutes, Math.min(maxEndMinutes, newEndMinutes));
-      // Ajustar a intervalos de 15 minutos
-      newEndMinutes = Math.round(newEndMinutes / 15) * 15;
+      newEndMinutes = currentEndMinutes + (quarterHourDelta * 15);
+      // Limitar el tiempo de finalización
+      newEndMinutes = Math.max(
+        currentStartMinutes + 15,
+        Math.min((this.BASE_HOUR + 21) * 60, newEndMinutes)
+      );
     }
+    
+    // Ajustar a intervalos de 15 minutos
+    newStartMinutes = Math.round(newStartMinutes / 15) * 15;
+    newEndMinutes = Math.round(newEndMinutes / 15) * 15;
     
     const tempEvent = {
       ...this.resizingEvent,
@@ -535,13 +537,20 @@ onMouseMove(event: MouseEvent) {
       endTime: formatTimeWithMinutes(newEndMinutes)
     };
     
-    // Verificar colisiones excluyendo el evento actual
+    // Verificar colisiones con otros eventos, excluyendo el evento actual
     const hasCollision = this.events
-      .filter(e => e.id !== this.resizingEvent?.id)
-      .some(e => this.checkTimeCollision({
-        ...tempEvent,
-        date: this.resizingEvent?.date
-      }));
+      .filter(e => e.id !== this.resizingEvent?.id) // Excluir el evento actual
+      .filter(e => e.date.toDateString() === this.resizingEvent?.date.toDateString()) // Solo eventos del mismo día
+      .some(existingEvent => {
+        const existingStart = getMinutesFromTime(existingEvent.startTime);
+        const existingEnd = getMinutesFromTime(existingEvent.endTime);
+        
+        return (
+          (newStartMinutes >= existingStart && newStartMinutes < existingEnd) ||
+          (newEndMinutes > existingStart && newEndMinutes <= existingEnd) ||
+          (newStartMinutes <= existingStart && newEndMinutes >= existingEnd)
+        );
+      });
     
     if (!hasCollision) {
       const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
