@@ -501,7 +501,7 @@ body {
     display: flex;
   flex-direction: column;
   justify-content: space-between;
-  font-size: clamp(14px, 2vh, 32px);
+  font-size: clamp(14px, 1vh, 32px);
     border: none;
     box-sizing: border-box;
     pointer-events: all;
