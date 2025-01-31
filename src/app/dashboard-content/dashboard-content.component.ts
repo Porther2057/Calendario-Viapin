@@ -565,56 +565,7 @@ onMouseMove(event: MouseEvent) {
         this.cdr.detectChanges();
       }
     }
-  } else if (this.isDragging && this.draggedEvent && this.dragStartHour !== null) {
-    event.preventDefault();
-    
-    const mouseY = event.clientY;
-    const mouseX = event.clientX;
-    const deltaY = mouseY - this.dragStartY;
-    const deltaX = mouseX - this.dragStartX;
-    
-    // Calcular nueva hora manteniendo los minutos originales
-    const hourDelta = Math.round(deltaY / this.hourHeight);
-    let newStartHour = this.dragStartHour + hourDelta;
-    newStartHour = Math.max(this.BASE_HOUR, Math.min(this.BASE_HOUR + 20, newStartHour));
-
-    const dayDelta = Math.round(deltaX / this.dayWidth);
-    const weekDays = this.getWeekDays();
-    const newDayIndex = Math.max(0, Math.min(6, this.originalDayIndex + dayDelta));
-    const newDate = weekDays[newDayIndex].date;
-    
-    // Mantener los minutos originales
-    const [startMinutes, endMinutes] = this.getEventMinutes(this.draggedEvent);
-    
-    // Formatear las horas manteniendo los minutos y la duración original
-    const formatTimeWithMinutes = (hour: number, minutes: number): string => {
-      const adjustedHour = hour % 24;
-      const isPM = adjustedHour >= 12;
-      const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
-      return `${displayHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
-    };
-
-    // Crear evento temporal para verificar colisión
-    const tempEvent = {
-      ...this.draggedEvent,
-      date: newDate,
-      startTime: formatTimeWithMinutes(newStartHour, startMinutes),
-      endTime: formatTimeWithMinutes(newStartHour + this.originalEventDuration, endMinutes)
-    };
-    
-    this.validDropZone = !this.checkTimeCollision(tempEvent);
-    
-    // Actualizar estilos del evento que se está arrastrando
-    const eventElement = document.querySelector('.event-dragging');
-    if (eventElement) {
-      if (this.validDropZone) {
-        eventElement.classList.add('valid-drop');
-        eventElement.classList.remove('invalid-drop');
-      } else {
-        eventElement.classList.add('invalid-drop');
-        eventElement.classList.remove('valid-drop');
-      }
-    }
+ /*Agregar aqui codigo para arrastre*/
   } else if (this.isDragCreating && this.dragStartCell) {
     const cell = this.findTimeCell(event);
     if (cell) {
@@ -646,78 +597,7 @@ onMouseUp(event: MouseEvent) {
     this.resizingEvent = null;
     this.resizeType = null;
     document.body.style.cursor = 'default';
-  } else if (this.isDragging && this.draggedEvent && this.dragStartHour !== null) {
-    const mouseY = event.clientY;
-    const mouseX = event.clientX;
-    const deltaY = mouseY - this.dragStartY;
-    const deltaX = mouseX - this.dragStartX;
-    
-    // Obtener los minutos originales y la duración exacta
-    const getMinutesFromTime = (timeString: string): { hours: number, minutes: number } => {
-      const [time, period] = timeString.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
-      
-      if (period === 'PM' && hours !== 12) {
-        hours += 12;
-      } else if (period === 'AM' && hours === 12) {
-        hours = 0;
-      }
-      
-      return { hours, minutes };
-    };
-    
-    const startTime = getMinutesFromTime(this.draggedEvent.startTime);
-    const endTime = getMinutesFromTime(this.draggedEvent.endTime);
-    
-    // Calcular la duración exacta en minutos
-    const durationMinutes = 
-      ((endTime.hours * 60 + endTime.minutes) - 
-       (startTime.hours * 60 + startTime.minutes));
-    
-    // Calcular nueva hora manteniendo los minutos originales
-    const hourDelta = Math.round(deltaY / this.hourHeight);
-    let newStartHour = (this.dragStartHour - 1) + hourDelta;
-    newStartHour = Math.max(this.BASE_HOUR, Math.min(this.BASE_HOUR + 20, newStartHour));
-    
-    const dayDelta = Math.round(deltaX / this.dayWidth);
-    const weekDays = this.getWeekDays();
-    const newDayIndex = Math.max(0, Math.min(6, this.originalDayIndex + dayDelta));
-    const newDate = weekDays[newDayIndex].date;
-    
-    // Función para formatear tiempo preservando minutos exactos
-    const formatTimeWithExactMinutes = (hours: number, minutes: number): string => {
-      const adjustedHour = hours % 24;
-      const isPM = adjustedHour >= 12;
-      const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
-      return `${displayHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
-    };
-    
-    // Calcular tiempo de finalización basado en la duración original
-    const newStartTotalMinutes = newStartHour * 60 + startTime.minutes;
-    const newEndTotalMinutes = newStartTotalMinutes + durationMinutes;
-    
-    const newStartTime = formatTimeWithExactMinutes(
-      Math.floor(newStartTotalMinutes / 60),
-      newStartTotalMinutes % 60
-    );
-    const newEndTime = formatTimeWithExactMinutes(
-      Math.floor(newEndTotalMinutes / 60),
-      newEndTotalMinutes % 60
-    );
-    
-    const eventIndex = this.events.findIndex(e => e.id === this.draggedEvent!.id);
-    if (eventIndex !== -1 && this.validDropZone) {
-      this.events[eventIndex] = {
-        ...this.events[eventIndex],
-        date: newDate,
-        startTime: newStartTime,
-        endTime: newEndTime
-      };
-      
-      this.calculateActivityPercentages();
-    }
-    
-    this.finalizeDragDrop();
+ /**Agregar aqui codigo para arrastre */
   } else if (this.isDragCreating && this.dragStartCell && this.dragEndCell) {
     const weekDays = this.getWeekDays();
     const selectedDate = weekDays[this.dragStartCell.day].date;
@@ -762,7 +642,7 @@ private formatTimeString(hour: number): string {
 }
 
 
-startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
+ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
   event.preventDefault();
   this.isDragging = true;
   this.draggedEvent = { ...calendarEvent };
@@ -793,7 +673,7 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
   // Añadir clase de arrastre
   const eventElement = event.target as HTMLElement;
   eventElement.classList.add('event-dragging');
-}
+} 
 
 findTargetDay(event: MouseEvent): WeekDay | null {
   const weekDays = this.getWeekDays();
@@ -1161,15 +1041,24 @@ onCalendarMouseUp(event: MouseEvent) {
     const weekDays = this.getWeekDays();
     const selectedDate = weekDays[this.dragStartCell.day].date;
     
-    // Calcular horas de inicio y fin, ajustando para que coincida con isEventInHour
-    const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour) - 1 ; // Restar 1 para compensar
-    const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour);
+    // Ajustamos las horas para que coincidan con la visualización
+    const startHour = Math.round(this.dragStartCell.hour);
+    const endHour = Math.floor(this.dragEndCell.hour);
     
-    // Configurar valores para el modal
+    // Calculamos los minutos basados en la parte decimal de la hora
+    const startMinutes = Math.round((this.dragStartCell.hour % 1) * 60);
+    const endMinutes = Math.round((this.dragEndCell.hour % 1) * 60);
+    
+    // Ajustamos al intervalo de 15 minutos más cercano
+    const startMin = Math.round(startMinutes / 15) * 15;
+    const endMin = Math.round(endMinutes / 15) * 15;
+    
     this.selectedDate = selectedDate;
     this.day = this.formatDate(selectedDate);
-    this.selectedStartTime = this.formatTimeString(startHour);
-    this.selectedEndTime = this.formatTimeString(endHour);
+    
+    // Formatear los tiempos con los minutos ajustados
+    this.selectedStartTime = this.formatTimeStringWithMinutes(startHour, startMin);
+    this.selectedEndTime = this.formatTimeStringWithMinutes(endHour, endMin);
     this.time = this.selectedStartTime;
     this.endDay = this.selectedEndTime;
     
@@ -1177,6 +1066,14 @@ onCalendarMouseUp(event: MouseEvent) {
   }
   
   this.cleanupDragCreate();
+}
+
+
+private formatTimeStringWithMinutes(hour: number, minutes: number): string {
+  const adjustedHour = hour % 24;
+  const isPM = adjustedHour >= 12;
+  const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
+  return `${displayHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
 }
 
 private findTimeCell(event: MouseEvent): { day: number, hour: number } | null {
@@ -1187,7 +1084,6 @@ private findTimeCell(event: MouseEvent): { day: number, hour: number } | null {
   const calendarScrollTop = (calendarGrid as Element).scrollTop || 0;
   const windowScrollY = window.scrollY;
   
-  // Encontrar el elemento específico donde ocurrió el evento
   let target = event.target as HTMLElement;
   while (target && !target.classList.contains('hour')) {
     target = target.parentElement as HTMLElement;
@@ -1196,21 +1092,28 @@ private findTimeCell(event: MouseEvent): { day: number, hour: number } | null {
   if (!target) return null;
 
   const dayIndex = parseInt(target.getAttribute('data-day-index') || '-1');
-  const hour = parseInt(target.getAttribute('data-hour') || '-1');
+  const baseHour = parseInt(target.getAttribute('data-hour') || '-1');
 
-  if (dayIndex === -1 || hour === -1) return null;
+  if (dayIndex === -1 || baseHour === -1) return null;
 
   const timeColumnWidth = 60;
   const headerHeight = 80;
   
-  // Calcular los límites del contenedor
   const containerTop = rect.top + headerHeight;
   const containerBottom = rect.bottom;
 
-  // Verificar si el evento está dentro de los límites verticales del contenedor
   if (event.clientY < containerTop || event.clientY > containerBottom) {
     return null;
   }
+
+  // Calcular la fracción de hora basada en la posición vertical dentro de la celda
+  const cellRect = target.getBoundingClientRect();
+  const relativeY = event.clientY - cellRect.top;
+  const quarterHour = Math.floor((relativeY / this.hourHeight) * 4); // Dividir la hora en 4 partes
+  
+  // Ajustar la hora para incluir los cuartos de hora, restando 1 para alinear con la hora base
+  const adjustedHour = (baseHour === 23) ? baseHour : (baseHour - 1) + (quarterHour / 4);
+
 
   const x = event.clientX - rect.left - timeColumnWidth;
   const y = event.clientY - rect.top + calendarScrollTop + windowScrollY;
@@ -1219,15 +1122,16 @@ private findTimeCell(event: MouseEvent): { day: number, hour: number } | null {
   if (
     dayIndex >= 0 && 
     dayIndex < 7 && 
-    hour >= this.BASE_HOUR && 
-    hour < this.BASE_HOUR + 21 && 
+    adjustedHour >= this.BASE_HOUR && 
+    adjustedHour < this.BASE_HOUR + 21 && 
     adjustedY >= 0
   ) {
-    return { day: dayIndex, hour };
+    return { day: dayIndex, hour: adjustedHour };
   }
 
   return null;
 }
+
 
 private createTemporaryEvent(event: MouseEvent) {
   if (!this.dragStartCell) return;
@@ -1253,9 +1157,12 @@ private updateTemporaryEvent() {
   const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour);
   const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour);
   
+  // Formatear las horas para mostrarlas
+  const startTimeDisplay = this.formatTimeStringWithMinutes(Math.floor(startHour), Math.round((startHour % 1) * 60));
+  const endTimeDisplay = this.formatTimeStringWithMinutes(Math.floor(endHour), Math.round((endHour % 1) * 60));
+  
   const dayWidth = (rect.width - timeColumnWidth) / 7;
   
-  // Obtener el elemento del día específico
   const dayColumn = document.querySelector(`[data-day-index="${day}"]`);
   let left = rect.left + timeColumnWidth;
   
@@ -1267,37 +1174,38 @@ private updateTemporaryEvent() {
   }
   
   const headerHeight = 80;
-  const topOffset = ((startHour - this.BASE_HOUR) * this.hourHeight) + headerHeight - calendarScrollTop;
+  const topOffset = ((startHour - this.BASE_HOUR + 1) * this.hourHeight) + headerHeight - calendarScrollTop;
   const adjustedTop = rect.top + topOffset + windowScrollY;
-  const height = (endHour - startHour + 1) * this.hourHeight;
+  const height = (endHour - startHour) * this.hourHeight;
 
-  // Calcular los límites del contenedor
   const containerTop = rect.top + headerHeight;
   const containerBottom = rect.bottom;
-  const containerScrollHeight = (calendarGrid as Element).scrollHeight;
-  const maxVisibleHeight = containerBottom - containerTop;
 
-  // Ajustar la posición y altura si se excede de los límites
   let finalTop = adjustedTop - windowScrollY;
   let finalHeight = height;
 
-  // Ajustar si se excede por arriba
   if (finalTop < containerTop) {
     const difference = containerTop - finalTop;
     finalTop = containerTop;
     finalHeight -= difference;
   }
 
-  // Ajustar si se excede por abajo
   if (finalTop + finalHeight > containerBottom) {
     finalHeight = containerBottom - finalTop;
   }
 
-  // No mostrar el evento si está completamente fuera de los límites visibles
   if (finalHeight <= 0) {
     this.temporaryEventElement.style.display = 'none';
     return;
   }
+
+  // Actualizar el contenido del evento temporal usando flexbox para el posicionamiento
+  this.temporaryEventElement.innerHTML = `
+    <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+      <div style="font-family: Arial, sans-serif; Lunasima font-size: 14px; font-weight: bold;">(title)</div>
+      <div style="font-family: Arial, sans-serif; font-size: 14px;">${startTimeDisplay} - ${endTimeDisplay}</div>
+    </div>
+  `;
 
   Object.assign(this.temporaryEventElement.style, {
     position: 'fixed',
@@ -1314,7 +1222,8 @@ private updateTemporaryEvent() {
     opacity: '0.7',
     boxSizing: 'border-box',
     overflow: 'hidden',
-    display: 'block'
+    display: 'block',
+    color: '#000000'
   });
 }
 
@@ -1341,5 +1250,4 @@ private cleanupDragCreate() {
   this.dragEndCell = null;
 }
 }
-
 
