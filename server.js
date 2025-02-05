@@ -117,7 +117,7 @@ app.put('/api/activity-percentages/:fecha', async (req, res) => {
   }
 });
 
-// Endpoint para obtener el histórico de porcentajes (se mantiene igual)
+
 // Endpoint para obtener el histórico de porcentajes
 app.get('/api/activity-percentages', async (req, res) => {
   try {
@@ -136,7 +136,7 @@ app.get('/api/activity-percentages', async (req, res) => {
 });
 
 
-// Ruta principal que maneja las rutas de tu aplicación Angular
+// Ruta principal 
 app.get('*', (req, res) => {
   res.sendFile(path.join(distFolder, 'index.html'));
 });
