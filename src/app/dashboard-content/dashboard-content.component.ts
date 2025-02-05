@@ -1297,8 +1297,8 @@ onCalendarMouseUp(event: MouseEvent) {
     const selectedDate = weekDays[this.dragStartCell.day].date;
     
     /**AJUSTAR HORAS PARA QUE COINCIDAN CON LA VISUALIZACIÓN */
-    const startHour = Math.floor(this.dragStartCell.hour);
-    const endHour = Math.floor(this.dragEndCell.hour);
+    const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour);
+  const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour);
     
    /**CALCULAR MINUTOS BASADOS EN LA PARTE DECIMAL DE LA HORA */
    const startMinutes = Math.round((this.dragStartCell.hour % 1) * 60);
@@ -1312,8 +1312,8 @@ onCalendarMouseUp(event: MouseEvent) {
     this.day = this.formatDate(selectedDate);
     
     /**CALCULAR LOS TIEMPOS CON LOS MINUTOS AJUSTADOS */
-    this.selectedStartTime = this.formatTimeStringWithMinutes(startHour, startMin);
-    this.selectedEndTime = this.formatTimeStringWithMinutes(endHour, endMin);
+    this.selectedStartTime = this.formatTimeStringWithMinutes(Math.floor(startHour), startMin);
+    this.selectedEndTime = this.formatTimeStringWithMinutes(Math.floor(endHour), endMin);
     this.time = this.selectedStartTime;
     this.endDay = this.selectedEndTime;
     
