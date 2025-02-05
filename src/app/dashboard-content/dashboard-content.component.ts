@@ -93,7 +93,7 @@ export class DashboardContentComponent implements OnInit {
 
   events: CalendarEvent[] = [];
 
-  /* ASGINACIÓN AUYTOMATICA DE ESTILOS VISUALES PARA EL TIPO DE EVENTO*/
+  /* ASGINACIÓN AUTOMATICA DE ESTILOS VISUALES PARA EL TIPO DE EVENTO*/
   private typeColors: { [key: string]: { backgroundColor: string, borderColor: string } } = {
     'estrategica': { backgroundColor: '#EFD9D9', borderColor: '#EF0A06' },
     'administrativa': { backgroundColor: '#D8EDD7', borderColor: '#0AD600' },
@@ -106,7 +106,7 @@ export class DashboardContentComponent implements OnInit {
 
 /**VARIABLES PARA EL MODAL, NECESARIAS PARA CONTROLARLO */
   isCreateEventModalOpen: boolean = false;
-  isModalOpen: boolean = false; // Controla la visibilidad del modal
+  isModalOpen: boolean = false; /**CONTROLA VISIBILIDAD DEL MODAL */
   selectedDate: Date | null = null;
   selectedStartTime: string = '';
   selectedEndTime: string = '';
@@ -137,7 +137,6 @@ export class DashboardContentComponent implements OnInit {
   ngOnInit(): void {
     this.updateCalendar(); /**METODO PARA ACTUALIZAR EL CALENDARIO EN LA INTERFAZ */
     this.generateAvailableTimes(); /**GENERA LOS HORARIOS DISPONIBLES */
-    
   }
 
   /**DEVUELVE EL OMBRE DEL MES CORRESPONDIENTE A UN INDICE, POR EJEMPLO 0 PARA ENERO, 1 PARA FEBRERO, ETC... */
@@ -154,10 +153,10 @@ export class DashboardContentComponent implements OnInit {
     const newMonth = this.currentDate.getMonth() + direction;
 
     if (newMonth > 11) {
-      this.currentDate.setFullYear(this.currentDate.getFullYear() + 1); /**AVANZAR (flecha apuntando a derecha) */
+      this.currentDate.setFullYear(this.currentDate.getFullYear() + 1); /**AVANZAR (FLECHA APUNTANDO A LA DERECHA) */
       this.currentDate.setMonth(0);
     } else if (newMonth < 0) {
-      this.currentDate.setFullYear(this.currentDate.getFullYear() - 1); /**RETROCEDER (flecha apuntando a izquierda) */
+      this.currentDate.setFullYear(this.currentDate.getFullYear() - 1); /**RETROCEDER (FLECHA APUNTANDO A LA IZQUIERDA) */
       this.currentDate.setMonth(11);
     } else {
       this.currentDate.setMonth(newMonth);
@@ -215,12 +214,12 @@ export class DashboardContentComponent implements OnInit {
   /**METODO PARA LOS DIAS FESTIVOS  (Monthly-calendar)*/
   getHolidaysForMonth(year: number, month: number): number[] {
     const fixedHolidays = [
-      { month: 0, day: 1 }, // Año Nuevo
-      { month: 4, day: 1 }, // Día del Trabajo
-      { month: 6, day: 20 }, // Día de la Independencia
-      { month: 7, day: 7 }, // Batalla de Boyacá
-      { month: 11, day: 8 }, // Inmaculada Concepción
-      { month: 11, day: 25 } // Navidad
+      { month: 0, day: 1 }, /**AÑO NUEVO */
+      { month: 4, day: 1 }, /**DIA DEL TRABAJO */
+      { month: 6, day: 20 }, /**DIA DE LA INDEPENDENCIA */
+      { month: 7, day: 7 }, /**BATALLA DE BOYACA */
+      { month: 11, day: 8 }, /**INMACULADA CONCEPCIÓN */
+      { month: 11, day: 25 } /**NAVIDAD */
     ];
   
     const mobileHolidays = this.calculateMobileHolidays(year);
@@ -268,7 +267,7 @@ export class DashboardContentComponent implements OnInit {
   getMondayHolidays(year: number): { month: number, day: number }[] {
     const holidays: { month: number, day: number }[] = [];
   
-    /**REYES MAOS */
+    /**REYES MAGOS */
     holidays.push(this.getFirstMondayAfter(year, 0, 6));
  
     /**SAN JOSE */
@@ -465,10 +464,10 @@ submitForm(): void {
   };
 
 /**EVENTO AL SERVIDOR */
- this.http.post('/api/events', finalEvent).subscribe({
+ this.http.post('/api/events', finalEvent).subscribe({ /**LLAMAR AL METODO DESDE LA API */
   next: () => {
-    this.events.push(finalEvent);
-    this.calculateActivityPercentages();
+    this.events.push(finalEvent); /**ENVIAR EVENTO */
+    this.calculateActivityPercentages(); /**CALCULO DE PORCENTAJES */
     
     Swal.fire({
       toast: true,
@@ -480,10 +479,10 @@ submitForm(): void {
       timerProgressBar: true
     });
     
-    this.closeModal();
-    this.cdr.detectChanges();
+    this.closeModal(); /**CERRAR MODAL AL HACER ENVIO */
+    this.cdr.detectChanges(); /**FORZAR DETECCION DE CAMBIOS */
   },
-  error: (error) => {
+  error: (error) => { /**VALIDACION DE ERRORES */
     Swal.fire({
       toast: true,
       position: 'top',
@@ -499,7 +498,7 @@ submitForm(): void {
 }
 
 /**RESETEA LOS CAMPOS DEL FORMULARIO A SUS VALORES INICIALES */
-resetForm(): void {
+resetForm(): void { /**RESETEA LOS CAMPOS LUEGO DE USAR EL MODAL, ESTO PARA EVITAR CONGESTIONES O BUGS */
   this.eventName = ''; 
   this.activityType = '';
   this.selectedDate = null;
@@ -512,8 +511,8 @@ resetForm(): void {
 
 /**GESTION PARA EL REDIMENCIONAMIENTO DE EVENTOS */
 startResize(event: MouseEvent, calendarEvent: CalendarEvent, type: 'top' | 'bottom') {
-  event.preventDefault(); 
-  event.stopPropagation();
+  event.preventDefault(); /**PREVENIR COMPORTAMIENTO POR DEFECTO DEL MOUSE */
+  event.stopPropagation(); /**DETENER PROPAGACIÓN */
   
   this.isResizing = true; /**MARCA QUE LA REDIMENCION ESTA ACTIVA */
   this.resizingEvent = { ...calendarEvent }; /**COPIA DEL EVENTO QUE REDIMENCIONA, EVITA ALTERAR EL EVENTO ORIGINAL */
@@ -612,14 +611,14 @@ onMouseMove(event: MouseEvent) {
             endTime: formatTimeWithMinutes(newEndMinutes)
           };
   
-          // Actualizar en base de datos
-          this.http.put(`/api/events/${updatedEvent.id}`, updatedEvent).subscribe({
+          /**SEGUN EL REDIMENCIONAMIENTO DEL EVENTO, ACTUALIZARLO EN LA BASE DE DATOS */
+          this.http.put(`/api/events/${updatedEvent.id}`, updatedEvent).subscribe({ /**LLAMAR AL METODO */
             next: () => {
-              this.events[eventIndex] = updatedEvent;
-              this.calculateActivityPercentages();
-              this.cdr.detectChanges();
+              this.events[eventIndex] = updatedEvent; /**ACTUALIZAR */
+              this.calculateActivityPercentages(); /**NUEVO CALCULO DE PORCENTAJES */
+              this.cdr.detectChanges(); 
             },
-            error: (error) => {
+            error: (error) => { /**VALIDACION SOBRE ERRORES */
               Swal.fire({
                 toast: true,
                 position: 'top',
@@ -629,7 +628,7 @@ onMouseMove(event: MouseEvent) {
                 showConfirmButton: false,
                 timer: 3000
               });
-              // Revertir cambios si la actualización falla
+              /**REVERTIR LOS CAMBIOS SI LLEGA A FALLAR LA ACTUALIZACIÓN */
               this.cdr.detectChanges();
             }
           });
@@ -692,7 +691,7 @@ onMouseMove(event: MouseEvent) {
     } */
 
 
-  } else if (this.isDragCreating && this.dragStartCell) {
+  } else if (this.isDragCreating && this.dragStartCell) { 
     const cell = this.findTimeCell(event);
     if (cell) {
       this.dragEndCell = {
@@ -710,7 +709,7 @@ private getEventMinutes(event: CalendarEvent): [number, number] {
     return parseInt(timeString.split(':')[1].split(' ')[0]);
   };
   
-  return [
+  return [ /**RETORNAR MINUTOS DE INICIO Y FIN */
     getMinutes(event.startTime),
     getMinutes(event.endTime)
   ];
@@ -850,7 +849,7 @@ private formatTimeString(hour: number): string {
   /**PREVENCION DEL COMPORTAMIENTO POR DEFECTO */
   event.preventDefault();
   this.isDragging = true; /**INDICA QUE EL EVENTO ESTA SIENDO ARRASTRADO */
-  this.draggedEvent = { ...calendarEvent }; /**GUARDA UNA COPIA DEL CalendarEvent o draggedEvent, lo que permite que el estado del evento se pueda modificar */
+  this.draggedEvent = { ...calendarEvent }; /**GUARDA UNA COPIA DEL CalendarEvent o draggedEvent, PERMITE QUE EL ESTADO DEL EVENTO SE MODIFIQUE */
   
 /**ALMACENAMIENTO DE POSICIONES INICIALES */
 
@@ -1188,7 +1187,7 @@ private calculateEventDuration(event: CalendarEvent): number {
 
 /**METODO PARA CALCULAR LOS PORCENTAJES DE TIPO DE EVENTOS */
 private calculateActivityPercentages(): void {
-  // Objeto para almacenar las horas totales por cada tipo de actividad
+/**OBJETO PARA ALMACENAR HORAS TOTALES POR CADA TIPO DE ACTIVIDAD */
   const hoursPerActivity: ActivityStats = {
     estrategica: 0,
     administrativa: 0,
@@ -1196,7 +1195,7 @@ private calculateActivityPercentages(): void {
     personal: 0
   };
 
-  // Variable para calcular total de horas
+  /**VARIABLE PARA CALCULAR TOTAL DE HORAS */
   let totalHours = 0;
   
   this.events.forEach(event => {
@@ -1205,7 +1204,7 @@ private calculateActivityPercentages(): void {
     totalHours += duration;
   });
 
-  // Si no hay eventos, establecer porcentajes a 0
+  /**SI NO HAY EVENTOS, ESTABLECER EN 0 */
   if (totalHours === 0) {
     this.activityPercentages = {
       estrategica: 0,
@@ -1214,28 +1213,28 @@ private calculateActivityPercentages(): void {
       personal: 0
     };
   } else {
-    // Calcular porcentajes
+    /**CALCULAR PORCENTAJES */
     Object.keys(hoursPerActivity).forEach(type => {
       const percentage = (hoursPerActivity[type as keyof ActivityStats] / totalHours) * 100;
       this.activityPercentages[type as keyof ActivityStats] = Math.round(percentage);
     });
   }
 
-  // Crear objeto con los datos a enviar
+  /**OBJETO PARA LOS DATOS QUE SE ENVIEN */
   const percentageData = {
-    fecha: new Date().toISOString().split('T')[0], // Fecha actual en formato YYYY-MM-DD
+    fecha: new Date().toISOString().split('T')[0], /**FECHA ACTUAL EN FORMATO YYYY - MMMM - DDDD */
     estrategica: this.activityPercentages.estrategica,
     administrativa: this.activityPercentages.administrativa,
     operativa: this.activityPercentages.operativa,
     personal: this.activityPercentages.personal
   };
 
-  // Actualizar los porcentajes en la base de datos usando PUT
-  this.http.put(`/api/activity-percentages/${percentageData.fecha}`, percentageData).subscribe({
+ /**ACTUALIZAR PORCENTAJES USANDO PUT */
+  this.http.put(`/api/activity-percentages/${percentageData.fecha}`, percentageData).subscribe({ /**LLAMAR AL METODO */
     next: () => {
       console.log('Porcentajes actualizados exitosamente');
     },
-    error: (error) => {
+    error: (error) => { /**VALIDACION DE ERRORES */
       console.error('Error al actualizar los porcentajes:', error);
       Swal.fire({
         toast: true,
@@ -1249,7 +1248,7 @@ private calculateActivityPercentages(): void {
     }
   });
 
-  // Forzar actualización de vista
+  /**FORZAR ACTUALIZACION DE VISTA */
   this.cdr.detectChanges();
 }
 
@@ -1367,7 +1366,7 @@ private findTimeCell(event: MouseEvent): { day: number, hour: number } | null {
   const relativeY = event.clientY - cellRect.top;
   const quarterHour = Math.floor((relativeY / this.hourHeight) * 4); /**DIVIDIR HORA EN 4 PARTES */
 
-  /**AJUSTAR LA HORA PRA INCLUIR LOS CUARTOS DE HORA, RESTANDO 1 PARA ALINEAR CON LA HORA BASE */
+  /**AJUSTAR LA HORA PARA INCLUIR LOS CUARTOS DE HORA, RESTANDO 1 PARA ALINEAR CON LA HORA BASE */
   const adjustedHour = (baseHour === 23) ? baseHour + (quarterHour / 4) : (baseHour - 1) + (quarterHour / 4);
 
 /**AJUSTA LA HORA CONSIDERANDO LA FRACCION DE CAURTO DE HORA */
@@ -1397,7 +1396,7 @@ private createTemporaryEvent(event: MouseEvent) {
   document.body.appendChild(this.temporaryEventElement);
   this.updateTemporaryEvent();
 }
-/**ACTUALIZA ELTAMAÑO, POSICIÓN Y CONTENIDO DEL EVENTO TEMPORAL MIENTRAS EL USUARIO ARRASTRE EL MOUSE */
+/**ACTUALIZA EL TAMAÑO, POSICIÓN Y CONTENIDO DEL EVENTO TEMPORAL MIENTRAS EL USUARIO ARRASTRE EL MOUSE */
 private updateTemporaryEvent() {
   if (!this.temporaryEventElement || !this.dragStartCell || !this.dragEndCell) return;
 
@@ -1499,7 +1498,7 @@ private timeStringToMinutes(timeString: string): number {
 /**LIMPIA LOS ESTAODS Y ELIMINA EL EVENTO TEMPORAL DE ARRASTRE DESPUES DE QUE EL USUARIO SUELTA EL MOUSE */
 private cleanupDragCreate() {
   if (this.temporaryEventElement) {
-    this.temporaryEventElement.remove(); /**SI temporalyEventElement existe, lo elimina y lo pone NULL */
+    this.temporaryEventElement.remove(); /**SI temporalyEventElement EXISTE LO ELIMINA COLOCA NULL */
     this.temporaryEventElement = null;
   }
   this.isDragCreating = false; /**INDICA QUE YA NO SE ESTA CREANDO UN EVENTO */
