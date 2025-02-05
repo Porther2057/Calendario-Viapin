@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard</title>
+  <!--IMPORTAR FUENTES / ICONOS FONT AWESOME-->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -173,7 +174,7 @@
         </button>
   
 
-        <!-- Modal HTML -->
+        <!-- Modal para crear eventos -->
 <div class="modal" *ngIf="isModalOpen" (click)="onModalBackgroundClick($event)">
   <div class="modal-content" (click)="onModalContentClick($event)">
     <h1 class="modal-title">Crear Actividad</h1>
@@ -254,7 +255,7 @@
       
 
 
-      
+      <!--Calendario Semanal-->
   
       <div class="calendar">
         <!-- Header -->
@@ -268,7 +269,7 @@
         <div class="day">DOM<br><span class="day-number" [ngClass]="{'today': getWeekDays()[6].isToday}">{{ getWeekDays()[6].day }}</span></div>
 
    
-  <!-- Time Slots -->
+
  <!-- Time Slots -->
 <ng-container *ngFor="let hour of [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0]">
   <div class="time"><span>{{hour}}:00</span></div>
