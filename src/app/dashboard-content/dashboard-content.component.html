@@ -175,10 +175,12 @@
   
 
         <!-- Modal para crear eventos -->
+<!-- Modal para crear eventos -->
 <div class="modal" *ngIf="isModalOpen" (click)="onModalBackgroundClick($event)">
   <div class="modal-content" (click)="onModalContentClick($event)">
+    <button class="close-button" (click)="closeModal()">×</button>
     <h1 class="modal-title">Crear Actividad</h1>
-    
+
     <form (ngSubmit)="submitForm()">
       <div class="form-group">
         <label>Nombre De La Actividad</label>
@@ -209,15 +211,16 @@
       <div class="form-group">
         <label>Horario de la actividad</label>
         <div class="time-inputs">
-          <input 
-            type="date" 
+          <input
+            type="date"
             placeholder="Seleccione fecha"
             [(ngModel)]="day"
             name="day"
+            [min]="today"
             (change)="onDateChange($event)"
             class="time-input">
-          
-          <select 
+
+          <select
             #startTime
             [(ngModel)]="time"
             name="time"
@@ -226,11 +229,11 @@
             class="time-input">
             <option value="" disabled selected>Hora inicio</option>
             <option *ngFor="let time of availableTimes" [value]="time">
-              {{time}}
+              {{ time }}
             </option>
           </select>
 
-          <select 
+          <select
             #endTime
             [(ngModel)]="endDay"
             name="endDay"
@@ -239,7 +242,7 @@
             class="time-input">
             <option value="" disabled selected>Hora fin</option>
             <option *ngFor="let time of availableTimes" [value]="time">
-              {{time}}
+              {{ time }}
             </option>
           </select>
         </div>
@@ -249,6 +252,7 @@
     </form>
   </div>
 </div>
+
         
 
       </div>
@@ -302,6 +306,7 @@
       
    
     </div>
+    
  
   
 </body>
