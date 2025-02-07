@@ -1,37 +1,19 @@
 // database.js
-import mysql from 'mysql2/promise';
+import mysql from 'mysql2';
 
-// Crear pool de conexiones
-const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'calendario-viapin',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+const connection = mysql.createConnection({
+  host: 'localhost',  
+  user: 'root',       
+  password: '', 
+  database: 'calendario-viapin' 
 });
 
-// Función para probar la conexión
-export async function testConnection() {
-  try {
-    const connection = await pool.getConnection();
-    console.log('Conexión a base de datos completa');
-    connection.release();
-  } catch (error) {
-    console.error('Error al conectar a base de datos:', error);
+connection.connect((err) => {
+  if (err) {
+    console.error('Error de conexión: ' + err.stack);
+    return;
   }
-}
+  console.log('Conectado a la base de datos');
+});
 
-// Función para ejecutar consultas de manera genérica
-export async function executeQuery(query, params = []) {
-  try {
-    const [results] = await pool.execute(query, params);
-    return results;
-  } catch (error) {
-    console.error('Error en la consulta:', error);
-    throw error;
-  }
-}
-
-export default pool;
+export default connection;
