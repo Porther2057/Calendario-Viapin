@@ -84,6 +84,7 @@ export class DashboardContentComponent implements OnInit {
   availableTimes: string[] = [];
   startTime: string = '';
   endTime: string = '';
+  
 
   //REDIMENCION DE EVENTOS
   isResizing: boolean = false;
@@ -91,7 +92,7 @@ export class DashboardContentComponent implements OnInit {
   resizeStartTime: string = '';
   resizingEvent: CalendarEvent | null = null;
   resizeType: 'top' | 'bottom' | null = null;
-  
+  proposedEventChanges: CalendarEvent | null = null;
 
   events: CalendarEvent[] = [];
 
@@ -535,19 +536,15 @@ startResize(event: MouseEvent, calendarEvent: CalendarEvent, type: 'top' | 'bott
   document.body.style.cursor = 'ns-resize'; /**CURSOR */
 }
 
-/**GESTION DE COMPORTAMIENTO PARA LA REDIMENSION DE EVENTOS DENTRO DEL CALENDARIO */
 @HostListener('document:mousemove', ['$event'])
 onMouseMove(event: MouseEvent) {
-  /**COMPRUEBA SI ESTA ACTIVO EL PROCESO DE REDIMENSION */
   if (this.isResizing && this.resizingEvent) {
-    event.preventDefault(); /**PREVIENE ACCION PREDETERMINADA AL MOVER EL MOUSE */
+    event.preventDefault();
     
-    /**CALCULO DEL DESPLAZAMIENTO DEL RATÓN */
-    const deltaY = event.clientY - this.resizeStartY; /**CAMBIO DE POSICIÓN VERTICAL */
-    const quarterHourHeight = this.hourHeight / 4; /**CALCULA EL INTERVALO DE 15 MIN */
+    const deltaY = event.clientY - this.resizeStartY;
+    const quarterHourHeight = this.hourHeight / 4;
     const quarterHourDelta = Math.round(deltaY / quarterHourHeight); 
     
-    /**CONVERTIR HORA EN FORMATO DE CADENA A MINUTOS A PARTIR DE MEDIA NOCHE */
     const getMinutesFromTime = (timeString: string): number => {
       const [time, period] = timeString.split(' ');
       let [hours, minutes] = time.split(':').map(Number);
@@ -556,7 +553,6 @@ onMouseMove(event: MouseEvent) {
       return hours * 60 + minutes;
     };
     
-    /**FORMATEA UN NUMERO TOTAL DE MINUTOS EN UNA CADENA DE HORA ESTANDAR */
     const formatTimeWithMinutes = (totalMinutes: number): string => {
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
@@ -565,69 +561,78 @@ onMouseMove(event: MouseEvent) {
       return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
     };
     
-  /**OBTENER MINUTOS ORIGINALES DEL EVENTO ACTUAL */
     const currentStartMinutes = getMinutesFromTime(this.resizingEvent.startTime);
     const currentEndMinutes = getMinutesFromTime(this.resizingEvent.endTime);
     
-/**CALCULO DE NUEVOS TIEMPOS SEGÚN REDIMENCIONAMIENTO */
     let newStartMinutes = currentStartMinutes;
     let newEndMinutes = currentEndMinutes;
     
     if (this.resizeType === 'top') {
       newStartMinutes = currentStartMinutes + (quarterHourDelta * 15);
-    /**LIMITACIÓN PARA EL TIEMPO DE INICIO */
       newStartMinutes = Math.max(
         this.BASE_HOUR * 60,
         Math.min(currentEndMinutes - 15, newStartMinutes)
       );
     } else {
       newEndMinutes = currentEndMinutes + (quarterHourDelta * 15);
-      /**LIMITAR TIEMPO DE FINALIZACIÓN */
       newEndMinutes = Math.max(
         currentStartMinutes + 15,
         Math.min((this.BASE_HOUR + 21) * 60, newEndMinutes)
       );
     }
     
-    /**AJUSTAR A INTERVALOS DE 15 MINUTOS */
     newStartMinutes = Math.round(newStartMinutes / 15) * 15;
     newEndMinutes = Math.round(newEndMinutes / 15) * 15;
     
-    const tempEvent = {
-      ...this.resizingEvent,
-      startTime: formatTimeWithMinutes(newStartMinutes),
-      endTime: formatTimeWithMinutes(newEndMinutes)
-    };
+    const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
     
-   /**VERIFICAR COLISIONES, EXCLUYENDO EVENTO ACTUAL */
-    const hasCollision = this.events
-      .filter(e => e.id !== this.resizingEvent?.id) /**EXCLUIR EVENTO ACTUAL */
-      .filter(e => e.date.toDateString() === this.resizingEvent?.date.toDateString()) /**SOLO EVENTOS DEL MISMO DÍA */
-      .some(existingEvent => {
-        const existingStart = getMinutesFromTime(existingEvent.startTime);
-        const existingEnd = getMinutesFromTime(existingEvent.endTime);
-        
-        return (
-          (newStartMinutes >= existingStart && newStartMinutes < existingEnd) ||
-          (newEndMinutes > existingStart && newEndMinutes <= existingEnd) ||
-          (newStartMinutes <= existingStart && newEndMinutes >= existingEnd)
-        );
-      });
-    
-      if (!hasCollision) {
-        const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
-        
-        if (eventIndex !== -1) {
-          const updatedEvent = {
-            ...this.events[eventIndex],
-            startTime: formatTimeWithMinutes(newStartMinutes),
-            endTime: formatTimeWithMinutes(newEndMinutes),
-          };
-      
-          this.apiService.updateEvent(updatedEvent).subscribe({
+    if (eventIndex !== -1) {
+      this.events[eventIndex] = { 
+        ...this.events[eventIndex], 
+        startTime: formatTimeWithMinutes(newStartMinutes),
+        endTime: formatTimeWithMinutes(newEndMinutes)
+      };
+      this.cdr.detectChanges();
+    }
+  } else if (this.isDragCreating && this.dragStartCell) {
+    const cell = this.findTimeCell(event);
+    if (cell) {
+      this.dragEndCell = {
+        day: this.dragStartCell.day,
+        hour: cell.hour
+      };
+      this.updateTemporaryEvent();
+    }
+  }
+}
+
+/**FINALIZACION DE ACCIONES DE REDIMENCIONAMIENTO/ARRASTRE DE EVENTOS */
+@HostListener('document:mouseup', ['$event'])
+onMouseUp(event: MouseEvent) {
+  if (this.isResizing) {
+    const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
+    if (eventIndex !== -1) {
+      this.isResizing = false;
+      document.body.style.cursor = 'default';
+      Swal.fire({
+        title: '¿Estás seguro?',
+        text: '¿Deseas modificar el horario del evento?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, modificar',
+        cancelButtonText: 'Cancelar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.apiService.updateEvent(this.events[eventIndex]).subscribe({
             next: response => {
-              console.log('Respuesta de actualización:', response);
-              this.events[eventIndex] = { ...this.events[eventIndex], ...updatedEvent };
+              Swal.fire({
+                toast: true,
+                position: 'top',
+                icon: 'success',
+                title: 'Evento actualizado correctamente',
+                showConfirmButton: false,
+                timer: 3000
+              });
               this.calculateActivityPercentages();
               this.cdr.detectChanges();
             },
@@ -641,68 +646,15 @@ onMouseMove(event: MouseEvent) {
             }
           });
         } else {
-          console.error('Evento no encontrado en la lista');
+          this.events[eventIndex] = { 
+            ...this.resizingEvent 
+          } as CalendarEvent;
+          this.cdr.detectChanges();
         }
-      }
       
-
-
-  } else if (this.isDragCreating && this.dragStartCell) {
-    const cell = this.findTimeCell(event);
-    if (cell) {
-      this.dragEndCell = {
-        day: this.dragStartCell.day,
-        hour: cell.hour
-      };
-      this.updateTemporaryEvent();
-    }
-  }
-}
-
-/**METODO AUXILIAR PARA OBTNENER LOS MINUTOS DEL INICIO Y FIN */
-private getEventMinutes(event: CalendarEvent): [number, number] {
-  const getMinutes = (timeString: string): number => {
-    return parseInt(timeString.split(':')[1].split(' ')[0]);
-  };
-  
-  return [
-    getMinutes(event.startTime),
-    getMinutes(event.endTime)
-  ];
-}
-
-/**FINALIZACION DE ACCIONES DE REDIMENCIONAMIENTO/ARRASTRE DE EVENTOS */
-@HostListener('document:mouseup', ['$event'])
-onMouseUp(event: MouseEvent) {
-  /**DESACTIVACION DE LA REDIMENCION */
-  if (this.isResizing) {
-    // Encontrar el evento que se está redimensionando
-    const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
-    if (eventIndex !== -1) {
-      Swal.fire({
-        title: '¿Estás seguro?',
-        text: '¿Deseas modificar el horario del evento?',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, modificar',
-        cancelButtonText: 'Cancelar'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          Swal.fire({
-            toast: true,
-            position: 'top',
-            icon: 'success',
-            title: 'Evento actualizado correctamente',
-            showConfirmButton: false,
-            timer: 3000
-          });
-        }
+        this.resizingEvent = null;
+        this.resizeType = null;
       });
-
-      this.isResizing = false;
-      this.resizingEvent = null;
-      this.resizeType = null;
-      document.body.style.cursor = 'default'; 
     }
   } else if (this.isDragCreating && this.dragStartCell && this.dragEndCell) {
     const weekDays = this.getWeekDays();

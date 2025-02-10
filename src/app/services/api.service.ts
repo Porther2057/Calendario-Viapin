@@ -4,7 +4,7 @@ import { Observable, of } from 'rxjs';
 
 @Injectable()
 export class ApiService {
-  private apiUrl = 'http://localhost:3000/api'; // Verifica que coincida exactamente
+  private apiUrl = 'http://localhost:3000/api'; 
 
   constructor(private http: HttpClient) { }
 
