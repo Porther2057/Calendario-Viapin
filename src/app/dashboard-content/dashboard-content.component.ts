@@ -701,43 +701,144 @@ private formatTimeString(hour: number): string {
 }
 
 /**INICIALIZAR PROCESO DE ARRASTRE DE UN EVENTO */
- startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
-  /**PREVENCION DEL COMPORTAMIENTO POR DEFECTO */
-  event.preventDefault();
-  this.isDragging = true; /**INDICA QUE EL EVENTO ESTA SIENDO ARRASTRADO */
-  this.draggedEvent = { ...calendarEvent }; /**GUARDA UNA COPIA DEL CalendarEvent o draggedEvent, lo que permite que el estado del evento se pueda modificar */
-  
-/**ALMACENAMIENTO DE POSICIONES INICIALES */
+startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
+  let initialX = event.clientX;
+  let initialY = event.clientY;
+  let isDragging = false;
 
-  /**ALMACENAMIENTO DE CORDENADAS DEL PUNTERO DEL RATON AL MOMENTO QUE EMPIEZA EL ARRASTRE */
+  const mouseMoveHandler = (moveEvent: MouseEvent) => {
+    const deltaX = Math.abs(moveEvent.clientX - initialX);
+    const deltaY = Math.abs(moveEvent.clientY - initialY);
+
+    if (deltaX > 5 || deltaY > 5) {
+      isDragging = true;
+      document.removeEventListener('mousemove', mouseMoveHandler);
+      document.removeEventListener('mouseup', mouseUpHandler);
+      this.initiateDrag(event, calendarEvent);
+    }
+  };
+
+  const mouseUpHandler = () => {
+    document.removeEventListener('mousemove', mouseMoveHandler);
+    document.removeEventListener('mouseup', mouseUpHandler);
+
+    if (!isDragging) {
+      // Mostrar Swal con un formulario mejor alineado y limpio
+      Swal.fire({
+        title: 'Editar Evento',
+        html: `
+          <div style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
+            <div>
+              <label for="event-name" style="font-weight: bold;">Nombre del evento:</label>
+              <input id="event-name" class="swal2-input" value="${calendarEvent.name}" style="width: 100%;">
+            </div>
+            
+            <div>
+              <label for="event-type" style="font-weight: bold;">Tipo de actividad:</label>
+              <input id="event-type" class="swal2-input" value="${calendarEvent.type}" style="width: 100%;">
+            </div>
+
+            <div>
+              <label for="event-day" style="font-weight: bold;">Día del evento:</label>
+              <input id="event-day" type="date" class="swal2-input" value="${calendarEvent.date}" style="width: 100%;">
+            </div>
+
+            <div>
+              <label for="event-start-time" style="font-weight: bold;">Hora de inicio:</label>
+              <input id="event-start-time" type="time" class="swal2-input" value="${calendarEvent.startTime}" style="width: 100%;">
+            </div>
+
+            <div>
+              <label for="event-end-time" style="font-weight: bold;">Hora de finalización:</label>
+              <input id="event-end-time" type="time" class="swal2-input" value="${calendarEvent.endTime}" style="width: 100%;">
+            </div>
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Actualizar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+          const name = (document.getElementById('event-name') as HTMLInputElement).value;
+          const type = (document.getElementById('event-type') as HTMLInputElement).value;
+          const date = (document.getElementById('event-day') as HTMLInputElement).value;
+          const startTime = (document.getElementById('event-start-time') as HTMLInputElement).value;
+          const endTime = (document.getElementById('event-end-time') as HTMLInputElement).value;
+
+          if (!name || !type || !date || !startTime || !endTime) {
+            Swal.showValidationMessage('Todos los campos son obligatorios');
+            return;
+          }
+
+          return { name, type, date, startTime, endTime };
+        }
+      }).then(result => {
+        if (result.isConfirmed) {
+          const { name, type, date, startTime, endTime } = result.value!;
+          const eventIndex = this.events.findIndex(e => e.id === calendarEvent.id);
+
+          if (eventIndex !== -1) {
+            this.events[eventIndex] = {
+              ...this.events[eventIndex],
+              name,
+              type,
+              date,
+              startTime,
+              endTime
+            };
+            this.cdr.detectChanges();
+
+            Swal.fire({
+              icon: 'success',
+              title: 'Evento actualizado correctamente',
+              toast: true,
+              position: 'top',
+              showConfirmButton: false,
+              timer: 3000
+            });
+          }
+        }
+      });
+    }
+  };
+
+  document.addEventListener('mousemove', mouseMoveHandler);
+  document.addEventListener('mouseup', mouseUpHandler);
+
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+
+
+// Nuevo método para iniciar el arrastre
+private initiateDrag(event: MouseEvent, calendarEvent: CalendarEvent) {
+  this.isDragging = true;
+  this.draggedEvent = { ...calendarEvent };
+  
   this.dragStartX = event.clientX;
   this.dragStartY = event.clientY;
-
-  /**ALMACENA LA HORA DE INICIO DEL EVENTO EN FORMATO DE HORA */
   this.dragStartHour = this.timeStringToHour(calendarEvent.startTime);
-
-  /**CALCULAR Y ALMACENAR DURACIÓN DEL EVENTO */
-  const startMinutes = this.timeStringToMinutes(calendarEvent.startTime); /**CALCULO DE MINUTOS DE INICIO */
-  const endMinutes = this.timeStringToMinutes(calendarEvent.endTime); /**CALCULO DE MINUTOS DE FIN */
-  this.originalEventDuration = (endMinutes - startMinutes) / 60; /**DURACION EN HORAS */
-
-/**CALCULAR INDICE DEL DÍA ORIGINAL */
-  const weekDays = this.getWeekDays(); /**OBTENCION DEL INDICE */
+  
+  const startMinutes = this.timeStringToMinutes(calendarEvent.startTime);
+  const endMinutes = this.timeStringToMinutes(calendarEvent.endTime);
+  this.originalEventDuration = (endMinutes - startMinutes) / 60;
+  
+  const weekDays = this.getWeekDays();
   const eventDate = new Date(calendarEvent.date);
   this.originalDayIndex = weekDays.findIndex(day => 
     day.date.toDateString() === eventDate.toDateString()
   );
-
-/**CALCULAR ANCHO DEL DÍA */
+  
   const calendarElement = document.querySelector('.calendar');
   if (calendarElement) {
     this.dayWidth = calendarElement.getBoundingClientRect().width / 7;
   }
-
-/**CLASE DE ARRASTREA */
+  
   const eventElement = event.target as HTMLElement;
   eventElement.classList.add('event-dragging');
-} 
+}
+
 
 /**CALCULA EL DÍA DE LA SEMANA EN EL QUE SE ENCUENTRA EL MOUSE */
 findTargetDay(event: MouseEvent): WeekDay | null {
