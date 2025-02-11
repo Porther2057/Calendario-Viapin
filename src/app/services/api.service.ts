@@ -4,6 +4,7 @@ import { Observable, of } from 'rxjs';
 
 @Injectable()
 export class ApiService {
+ 
   private apiUrl = 'http://localhost:3000/api'; 
 
   constructor(private http: HttpClient) { }
@@ -31,5 +32,8 @@ export class ApiService {
     }
     return this.http.put(`${this.apiUrl}/events/${event.id}`, event);
   }
-  
+    // Nuevo método específico para actualizar desde el modal
+    updateEventFromModal(event: any): Observable<any> {
+      return this.http.put(`${this.apiUrl}/events/modal/${event.id}`, event);
+    }
 }
