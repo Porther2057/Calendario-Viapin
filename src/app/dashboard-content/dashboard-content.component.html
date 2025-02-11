@@ -96,8 +96,7 @@
         [ngClass]="{
           'not-current-month': !day.isCurrentMonth,
           'holiday': day.isHoliday && day.isCurrentMonth
-        }"
-        (click)="onDayClick(day)">
+        }">
       {{ day.day ? day.day : '' }}
     </td>
       </tr>
@@ -307,6 +306,83 @@
    
     </div>
     
+    <!-- Modal para actualizar eventos -->
+<div class="modal" *ngIf="isEditModalOpen" (click)="onModalBackgroundClick($event)">
+  <div class="modal-content" (click)="onModalContentClick($event)">
+    <button class="close-button" (click)="closeEditModal()">×</button>
+    <h1 class="modal-title">Actualizar Actividad</h1>
+
+    <form (ngSubmit)="updateEvent()">
+      <div class="form-group">
+        <label>Nombre De La Actividad</label>
+        <input
+          type="text"
+          [(ngModel)]="editEventName"
+          name="editEventName"
+          required
+          placeholder="Ingrese el nombre del evento"
+          class="full-width-input">
+      </div>
+
+      <div class="form-group">
+        <label>Tipo de actividad</label>
+        <select
+          [(ngModel)]="editActivityType"
+          name="editActivityType"
+          required
+          class="full-width-select">
+          <option value="" disabled>Seleccione el tipo de actividad</option>
+          <option value="estrategica">Estratégica</option>
+          <option value="administrativa">Administrativa</option>
+          <option value="operativa">Operativa</option>
+          <option value="personal">Personal</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Horario de la actividad</label>
+        <div class="time-inputs">
+          <input
+            type="date"
+            placeholder="Seleccione fecha"
+            [(ngModel)]="editDay"
+            name="editDay"
+            [min]="today"
+            (change)="onEditDateChange($event)"
+            class="time-input">
+
+          <select
+            #editStartTime
+            [(ngModel)]="editTime"
+            name="editTime"
+            required
+            (change)="onEditStartTimeChange(editStartTime.value)"
+            class="time-input">
+            <option value="" disabled>Hora inicio</option>
+            <option *ngFor="let time of availableTimes" [value]="time">
+              {{ time }}
+            </option>
+          </select>
+
+          <select
+            #editEndTime
+            [(ngModel)]="editEndDay"
+            name="editEndDay"
+            required
+            (change)="onEditEndTimeChange(editEndTime.value)"
+            class="time-input">
+            <option value="" disabled>Hora fin</option>
+            <option *ngFor="let time of availableTimes" [value]="time">
+              {{ time }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-button">Actualizar Actividad</button>
+    </form>
+  </div>
+</div>
  
   
 </body>
