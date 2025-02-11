@@ -103,7 +103,7 @@ body {
   .main-content {
     flex: 1;
     flex-direction: column;
-    padding: 20px;
+    padding: 1rem;
     gap: 20px;
     margin-left: 30px;  /* Deja espacio para el sidebar */
     margin-top: 30px;  /* Deja espacio para el sidebar-header */
@@ -147,7 +147,7 @@ body {
         'activities calendar '
         'extra calendar'
     ; /* Distribuye espacio entre los dos elementos */
-    gap: 5px;
+    gap: 1rem;
     grid-template-columns: 1fr 3fr; /* Define el ancho relativo de las columnas */
     
   }
@@ -161,7 +161,7 @@ body {
     padding: 15px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     background: #fff;
-    margin-top: 10px;
+  
   }
 
   .extra{
@@ -171,7 +171,7 @@ body {
     padding: 15px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     background: #fff;
-    margin-top: 10px;
+ 
   }
 
   .monthly-calendar{
@@ -181,7 +181,7 @@ body {
     padding: 15px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     background: #fff;
-    margin-top: 10px;
+ 
   }
 
 
@@ -330,10 +330,7 @@ body {
     font-family: "Lato", serif;
   }
   
-  td:hover {
-    background-color: #a9bff3;
-    cursor: pointer;
-  }
+  
   
   td.empty {
     background-color: #f9f9f9;
@@ -676,10 +673,20 @@ body {
     box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
   }
   
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   /* Ajuste para la posición relativa del modal-content */
   .modal-content {
     position: relative;
-    /* ... resto de estilos del modal-content ... */
+    animation: fadeIn 0.4s ease;
   }
   
   @media (max-width: 640px) {
