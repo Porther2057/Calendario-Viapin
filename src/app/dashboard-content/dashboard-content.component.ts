@@ -5,8 +5,6 @@ import Swal from 'sweetalert2';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { ApiService } from '../services/api.service';
 
-
-
 /**Interfases generales, sus propiedades son para varias funciones en el codigo */
 interface CalendarEvent {
   id: string;
@@ -32,7 +30,6 @@ interface ActivityStats {
   personal: number;
 }
 
-
 @Component({
   selector: 'app-dashboard-content',
   standalone: true,
@@ -46,10 +43,7 @@ export class DashboardContentComponent implements OnInit {
   today: string = new Date().toISOString().split('T')[0];
   private apiUrl = 'http://localhost:3000/api';
 
-  
-
   /**PROPIEDADES Y LOGICA PARA EL MANEJO DE FUNCIONALIDADES DEL CALENDARIO SEMANAL */
-
   private readonly BASE_HOUR = 3; // Hora base del calendario (3 AM)
   
   /**Propiedades de arrastre (drag) */
@@ -94,6 +88,15 @@ export class DashboardContentComponent implements OnInit {
   resizeType: 'top' | 'bottom' | null = null;
   proposedEventChanges: CalendarEvent | null = null;
 
+  // Propiedades para el modal de edición
+  isEditModalOpen: boolean = false;
+  editEventName: string = '';
+  editActivityType: string = '';
+  editDay: string = '';
+  editTime: string = '';
+  editEndDay: string = '';
+  currentEditingEvent: CalendarEvent | null = null;
+
   events: CalendarEvent[] = [];
 
   /* ASGINACIÓN AUYTOMATICA DE ESTILOS VISUALES PARA EL TIPO DE EVENTO*/
@@ -104,7 +107,6 @@ export class DashboardContentComponent implements OnInit {
     'personal': { backgroundColor: '#E4E4E4', borderColor: '#747474' },
     'perso': { backgroundColor: '#E9F5FA', borderColor: '#000000' } 
   };
-  
   
 
 /**VARIABLES PARA EL MODAL, NECESARIAS PARA CONTROLARLO */
@@ -134,7 +136,7 @@ export class DashboardContentComponent implements OnInit {
     this.currentMonthName = this.getMonthName(this.currentDate.getMonth());
     this.currentYear = this.currentDate.getFullYear();
   }
-
+    
   
 
   /*CICLO DE VIDA */
@@ -374,23 +376,6 @@ onModalContentClick(event: MouseEvent): void {
   event.stopPropagation();
 }
 
-/**MANEJA EL CLICK DEL MONTHLY-CALENDAR, ESTO ABRE EL MODAL CON LA FECHA SELECCIONADA AUTOMATICAMENTE */
-onDayClick(day: any) {
-  if (day && day.isCurrentMonth) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const selectedDate = new Date(this.currentYear, this.currentDate.getMonth(), day.day);
-
-    // Validar que la fecha seleccionada no sea anterior a hoy
-    if (selectedDate >= today) {
-      this.selectedDate = selectedDate;
-      this.day = this.formatDate(selectedDate);
-      this.openCreateEventModal();
-    }
-  }
-}
-
 /**PROCESAMIENTO Y CREEACION DE UN EVENTO EN EL CALENDARIO */
 submitForm(): void {
   if (!this.eventName || !this.activityType || !this.selectedDate || !this.selectedStartTime || !this.selectedEndTime) {
@@ -507,8 +492,6 @@ submitForm(): void {
     }
   });
 }
-
-
 
 /**RESETEA LOS CAMPOS DEL FORMULARIO A SUS VALORES INICIALES */
 resetForm(): void {
@@ -701,6 +684,191 @@ private formatTimeString(hour: number): string {
 }
 
 /**INICIALIZAR PROCESO DE ARRASTRE DE UN EVENTO */
+ // Método para abrir el modal de edición
+ openEditModal(event: CalendarEvent) {
+  this.currentEditingEvent = event;
+  this.editEventName = event.name;
+  this.editActivityType = event.type;
+  
+  // Formateamos la fecha para el input date (YYYY-MM-DD)
+  const eventDate = new Date(event.date);
+  const year = eventDate.getFullYear();
+  const month = String(eventDate.getMonth() + 1).padStart(2, '0');
+  const day = String(eventDate.getDate()).padStart(2, '0');
+  this.editDay = `${year}-${month}-${day}`;
+  
+  this.editTime = event.startTime;
+  this.editEndDay = event.endTime;
+  this.isEditModalOpen = true;
+}
+
+// Método para cerrar el modal de edición
+closeEditModal(): void {
+  this.isEditModalOpen = false;
+  this.currentEditingEvent = null;
+  this.resetEditForm();
+}
+
+// Resetear el formulario de edición
+resetEditForm(): void {
+  this.editEventName = '';
+  this.editActivityType = '';
+  this.editDay = '';
+  this.editTime = '';
+  this.editEndDay = '';
+}
+
+// Manejo de cambios en la fecha de edición
+onEditDateChange(event: any): void {
+  // Obtenemos el valor directo del input date
+  const selectedDateStr = event.target.value; // Esto viene en formato YYYY-MM-DD
+  
+  // Creamos la fecha manteniendo la zona horaria local
+  const selectedDate = new Date(selectedDateStr + 'T12:00:00');
+  
+  // Asignamos directamente el string de la fecha al editDay
+  this.editDay = selectedDateStr;
+}
+
+// Manejo de cambios en la hora de inicio de edición
+onEditStartTimeChange(value: string): void {
+  this.editTime = value;
+}
+
+// Manejo de cambios en la hora de fin de edición
+onEditEndTimeChange(value: string): void {
+  this.editEndDay = value;
+}
+
+// Método para actualizar el evento
+updateEvent(): void {
+  // Validación de campos requeridos
+  if (!this.editEventName || !this.editActivityType || !this.editDay || !this.editTime || !this.editEndDay) {
+    Swal.fire({
+      toast: true,
+      position: 'top',
+      icon: 'warning',
+      title: 'Por favor, complete todos los campos.',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true
+    });
+    return;
+  }
+
+  // Función auxiliar para convertir tiempo a minutos
+  const getMinutesFromMidnight = (timeString: string) => {
+    const [time, period] = timeString.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+
+    if (period === 'PM' && hours !== 12) hours += 12;
+    else if (period === 'AM' && hours === 12) hours = 0;
+
+    return hours * 60 + minutes;
+  };
+
+  // Validación de horarios
+  const startMinutes = getMinutesFromMidnight(this.editTime);
+  const endMinutes = getMinutesFromMidnight(this.editEndDay);
+
+  if (endMinutes <= startMinutes) {
+    Swal.fire({
+      toast: true,
+      position: 'top',
+      icon: 'error',
+      title: 'La hora de finalización debe ser posterior a la de inicio.',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true
+    });
+    return;
+  }
+
+  if (this.currentEditingEvent) {
+    // Creamos la fecha a partir del string del input date
+    const selectedDate = new Date(this.editDay + 'T12:00:00');
+
+    const updatedEvent: CalendarEvent = {
+      ...this.currentEditingEvent,
+      name: this.editEventName,
+      type: this.editActivityType,
+      date: selectedDate,
+      startTime: this.editTime,
+      endTime: this.editEndDay,
+      color: this.typeColors[this.editActivityType as keyof typeof this.typeColors].backgroundColor
+    };
+
+    // Verificación de colisiones de tiempo
+    const otherEvents = this.events.filter(e => e.id !== this.currentEditingEvent?.id);
+    const hasCollision = otherEvents.some(e => {
+      const sameDate = new Date(e.date).toDateString() === new Date(updatedEvent.date).toDateString();
+      if (!sameDate) return false;
+
+      const eventStart = getMinutesFromMidnight(e.startTime);
+      const eventEnd = getMinutesFromMidnight(e.endTime);
+      return (startMinutes < eventEnd && endMinutes > eventStart);
+    });
+
+    if (hasCollision) {
+      Swal.fire({
+        toast: true,
+        position: 'top',
+        icon: 'error',
+        title: '¡Ya existe un evento en ese horario!',
+        text: 'Por favor, seleccione un horario disponible.',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+      });
+      return;
+    }
+
+    // Confirmación antes de actualizar
+    Swal.fire({
+      title: '¿Estás seguro de modificar el evento?',
+      text: `Evento: ${updatedEvent.name}`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, modificar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Llamada al API Service
+        this.apiService.updateEventFromModal(updatedEvent).subscribe({
+          next: (response) => {
+            const eventIndex = this.events.findIndex(e => e.id === this.currentEditingEvent?.id);
+            if (eventIndex !== -1) {
+              this.events[eventIndex] = updatedEvent;
+              
+              Swal.fire({
+                toast: true,
+                position: 'top',
+                icon: 'success',
+                title: 'Evento actualizado correctamente',
+                showConfirmButton: false,
+                timer: 3000
+              });
+
+              this.calculateActivityPercentages();
+              this.closeEditModal();
+              this.cdr.detectChanges();
+            }
+          },
+          error: (error) => {
+            console.error('Error al actualizar el evento:', error);
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'No se pudo actualizar el evento. Por favor, intente nuevamente.',
+              showConfirmButton: true
+            });
+          }
+        });
+      }
+    });
+  }
+}
+
 startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
   let initialX = event.clientX;
   let initialY = event.clientY;
@@ -723,82 +891,7 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
     document.removeEventListener('mouseup', mouseUpHandler);
 
     if (!isDragging) {
-      // Mostrar Swal con un formulario mejor alineado y limpio
-      Swal.fire({
-        title: 'Editar Evento',
-        html: `
-          <div style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
-            <div>
-              <label for="event-name" style="font-weight: bold;">Nombre del evento:</label>
-              <input id="event-name" class="swal2-input" value="${calendarEvent.name}" style="width: 100%;">
-            </div>
-            
-            <div>
-              <label for="event-type" style="font-weight: bold;">Tipo de actividad:</label>
-              <input id="event-type" class="swal2-input" value="${calendarEvent.type}" style="width: 100%;">
-            </div>
-
-            <div>
-              <label for="event-day" style="font-weight: bold;">Día del evento:</label>
-              <input id="event-day" type="date" class="swal2-input" value="${calendarEvent.date}" style="width: 100%;">
-            </div>
-
-            <div>
-              <label for="event-start-time" style="font-weight: bold;">Hora de inicio:</label>
-              <input id="event-start-time" type="time" class="swal2-input" value="${calendarEvent.startTime}" style="width: 100%;">
-            </div>
-
-            <div>
-              <label for="event-end-time" style="font-weight: bold;">Hora de finalización:</label>
-              <input id="event-end-time" type="time" class="swal2-input" value="${calendarEvent.endTime}" style="width: 100%;">
-            </div>
-          </div>
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Actualizar',
-        cancelButtonText: 'Cancelar',
-        preConfirm: () => {
-          const name = (document.getElementById('event-name') as HTMLInputElement).value;
-          const type = (document.getElementById('event-type') as HTMLInputElement).value;
-          const date = (document.getElementById('event-day') as HTMLInputElement).value;
-          const startTime = (document.getElementById('event-start-time') as HTMLInputElement).value;
-          const endTime = (document.getElementById('event-end-time') as HTMLInputElement).value;
-
-          if (!name || !type || !date || !startTime || !endTime) {
-            Swal.showValidationMessage('Todos los campos son obligatorios');
-            return;
-          }
-
-          return { name, type, date, startTime, endTime };
-        }
-      }).then(result => {
-        if (result.isConfirmed) {
-          const { name, type, date, startTime, endTime } = result.value!;
-          const eventIndex = this.events.findIndex(e => e.id === calendarEvent.id);
-
-          if (eventIndex !== -1) {
-            this.events[eventIndex] = {
-              ...this.events[eventIndex],
-              name,
-              type,
-              date,
-              startTime,
-              endTime
-            };
-            this.cdr.detectChanges();
-
-            Swal.fire({
-              icon: 'success',
-              title: 'Evento actualizado correctamente',
-              toast: true,
-              position: 'top',
-              showConfirmButton: false,
-              timer: 3000
-            });
-          }
-        }
-      });
+      this.openEditModal(calendarEvent);
     }
   };
 
@@ -808,8 +901,6 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
   event.preventDefault();
   event.stopPropagation();
 }
-
-
 
 // Nuevo método para iniciar el arrastre
 private initiateDrag(event: MouseEvent, calendarEvent: CalendarEvent) {
@@ -838,7 +929,6 @@ private initiateDrag(event: MouseEvent, calendarEvent: CalendarEvent) {
   const eventElement = event.target as HTMLElement;
   eventElement.classList.add('event-dragging');
 }
-
 
 /**CALCULA EL DÍA DE LA SEMANA EN EL QUE SE ENCUENTRA EL MOUSE */
 findTargetDay(event: MouseEvent): WeekDay | null {
@@ -941,7 +1031,7 @@ getEventStyle(event: CalendarEvent): any {
     padding: '4px',
     zIndex: 1,
     overflow: 'hidden',
-    cursor: this.isResizing ? 'ns-resize' : 'default',
+    cursor: this.isResizing ? 'ns-resize' : 'grab',
     userSelect: 'none',
     margin: '0',
     display: 'flex',
