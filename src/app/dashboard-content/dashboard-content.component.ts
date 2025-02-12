@@ -954,36 +954,234 @@ updateEvent(): void {
 }
 
 startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
-  let initialX = event.clientX;
-  let initialY = event.clientY;
-  let isDragging = false;
+  event.preventDefault();
+  
+  // Solo proceder si es click izquierdo (botón 0)
+  if (event.button === 0) {
+    let initialX = event.clientX;
+    let initialY = event.clientY;
+    let isDragging = false;
 
-  const mouseMoveHandler = (moveEvent: MouseEvent) => {
-    const deltaX = Math.abs(moveEvent.clientX - initialX);
-    const deltaY = Math.abs(moveEvent.clientY - initialY);
+    const mouseMoveHandler = (moveEvent: MouseEvent) => {
+      const deltaX = Math.abs(moveEvent.clientX - initialX);
+      const deltaY = Math.abs(moveEvent.clientY - initialY);
 
-    if (deltaX > 5 || deltaY > 5) {
-      isDragging = true;
+      if (deltaX > 5 || deltaY > 5) {
+        isDragging = true;
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+        this.initiateDrag(event, calendarEvent);
+      }
+    };
+
+    const mouseUpHandler = () => {
       document.removeEventListener('mousemove', mouseMoveHandler);
       document.removeEventListener('mouseup', mouseUpHandler);
-      this.initiateDrag(event, calendarEvent);
+
+      if (!isDragging) {
+        this.openEditModal(calendarEvent);
+      }
+    };
+
+    document.addEventListener('mousemove', mouseMoveHandler);
+    document.addEventListener('mouseup', mouseUpHandler);
+  }
+  
+  // Detectar click derecho (botón 2)
+  if (event.button === 2) {
+    event.stopPropagation();
+    
+    // Remover cualquier menú contextual existente
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) {
+      document.body.removeChild(existingMenu);
     }
-  };
+    
+    // Crear el nuevo menú contextual
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'context-menu';
+    contextMenu.style.position = 'fixed';
+    contextMenu.style.left = `${event.clientX}px`;
+    contextMenu.style.top = `${event.clientY}px`;
+    contextMenu.style.backgroundColor = 'white';
+    contextMenu.style.border = '1px solid #ccc';
+    contextMenu.style.borderRadius = '4px';
+    contextMenu.style.padding = '8px 0';
+    contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    contextMenu.style.zIndex = '1000';
 
-  const mouseUpHandler = () => {
-    document.removeEventListener('mousemove', mouseMoveHandler);
-    document.removeEventListener('mouseup', mouseUpHandler);
+    // Opciones del menú
+    const options = [
+      { text: 'Eliminar evento', action: () => this.deleteEvent(calendarEvent) },
+      { text: 'Cambiar tipo', subOptions: [
+        { text: 'Estratégica', action: () => this.changeEventType(calendarEvent, 'estrategica') },
+        { text: 'Administrativa', action: () => this.changeEventType(calendarEvent, 'administrativa') },
+        { text: 'Operativa', action: () => this.changeEventType(calendarEvent, 'operativa') },
+        { text: 'Personal', action: () => this.changeEventType(calendarEvent, 'personal') }
+      ]}
+    ];
 
-    if (!isDragging) {
-      this.openEditModal(calendarEvent);
+    // Crear las opciones del menú
+    options.forEach(option => {
+      const item = document.createElement('div');
+      item.className = 'context-menu-item';
+      item.style.padding = '8px 16px';
+      item.style.cursor = 'pointer';
+      item.style.whiteSpace = 'nowrap';
+      item.style.display = 'flex';
+      item.style.alignItems = 'center';
+      item.style.justifyContent = 'space-between';
+      
+      const text = document.createElement('span');
+      text.textContent = option.text;
+      item.appendChild(text);
+
+      if (option.subOptions) {
+        const arrow = document.createElement('span');
+        arrow.textContent = '►';
+        arrow.style.marginLeft = '8px';
+        arrow.style.fontSize = '10px';
+        item.appendChild(arrow);
+      }
+
+      item.addEventListener('mouseenter', () => {
+        item.style.backgroundColor = '#f0f0f0';
+        
+        // Remover submenú existente
+        const existingSubMenu = document.querySelector('.sub-menu');
+        if (existingSubMenu) {
+          existingSubMenu.remove();
+        }
+        
+        if (option.subOptions) {
+          const subMenu = document.createElement('div');
+          subMenu.className = 'sub-menu';
+          subMenu.style.position = 'absolute';
+          subMenu.style.left = '100%';
+          subMenu.style.top = item.offsetTop + 'px';
+          subMenu.style.backgroundColor = 'white';
+          subMenu.style.border = '1px solid #ccc';
+          subMenu.style.borderRadius = '4px';
+          subMenu.style.padding = '8px 0';
+          subMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+
+          option.subOptions.forEach(subOption => {
+            const subItem = document.createElement('div');
+            subItem.className = 'context-menu-item';
+            subItem.textContent = subOption.text;
+            subItem.style.padding = '8px 16px';
+            subItem.style.cursor = 'pointer';
+            
+            subItem.addEventListener('mouseenter', () => {
+              subItem.style.backgroundColor = '#f0f0f0';
+            });
+            
+            subItem.addEventListener('mouseleave', () => {
+              subItem.style.backgroundColor = 'transparent';
+            });
+            
+            subItem.addEventListener('click', (e) => {
+              e.stopPropagation();
+              subOption.action();
+              document.body.removeChild(contextMenu);
+            });
+            
+            subMenu.appendChild(subItem);
+          });
+          
+          item.appendChild(subMenu);
+        }
+      });
+
+      item.addEventListener('mouseleave', () => {
+        item.style.backgroundColor = 'transparent';
+      });
+
+      if (!option.subOptions) {
+        item.addEventListener('click', () => {
+          option.action();
+          document.body.removeChild(contextMenu);
+        });
+      }
+
+      contextMenu.appendChild(item);
+    });
+
+    // Agregar el menú al documento
+    document.body.appendChild(contextMenu);
+
+    // Función para cerrar el menú
+    const closeContextMenu = (e: MouseEvent) => {
+      if (!contextMenu.contains(e.target as Node)) {
+        if (document.body.contains(contextMenu)) {
+          document.body.removeChild(contextMenu);
+        }
+        document.removeEventListener('mousedown', closeContextMenu);
+      }
+    };
+
+    // Agregar el event listener inmediatamente
+    document.addEventListener('mousedown', closeContextMenu);
+
+    // Prevenir que el menú contextual del navegador aparezca
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    }, { once: true });
+
+    return;
+  } else {
+    this.initiateDrag(event, calendarEvent);
+  }
+}
+
+// Nuevo método para cambiar el tipo de evento
+changeEventType(event: CalendarEvent, newType: string): void {
+  Swal.fire({
+    title: '¿Cambiar tipo de evento?',
+    text: `¿Deseas cambiar el tipo de evento a ${newType}?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, cambiar',
+    cancelButtonText: 'Cancelar'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const updatedEvent: CalendarEvent = {
+        ...event,
+        type: newType,
+        color: this.typeColors[newType as keyof typeof this.typeColors].backgroundColor
+      };
+
+      this.apiService.updateEventFromModal(updatedEvent).subscribe({
+        next: () => {
+          const eventIndex = this.events.findIndex(e => e.id === event.id);
+          if (eventIndex !== -1) {
+            this.events[eventIndex] = updatedEvent;
+            
+            Swal.fire({
+              toast: true,
+              position: 'top',
+              icon: 'success',
+              title: 'Tipo de evento actualizado',
+              showConfirmButton: false,
+              timer: 3000
+            });
+
+            this.calculateActivityPercentages();
+            this.cdr.detectChanges();
+          }
+        },
+        error: (error) => {
+          console.error('Error al actualizar el tipo de evento:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo actualizar el tipo de evento',
+            showConfirmButton: true
+          });
+        }
+      });
     }
-  };
-
-  document.addEventListener('mousemove', mouseMoveHandler);
-  document.addEventListener('mouseup', mouseUpHandler);
-
-  event.preventDefault();
-  event.stopPropagation();
+  });
 }
 
 // Nuevo método para iniciar el arrastre
@@ -1444,15 +1642,14 @@ private calculateActivityPercentages(): void {
 
 @HostListener('mousedown', ['$event'])
 onCalendarMouseDown(event: MouseEvent) {
-  if (this.isModalOpen) return;
+  if (event.button !== 0 || this.isModalOpen) return; // Solo permitir click izquierdo
 
   const cell = this.findTimeCell(event);
   if (!cell) return;
 
-  // Verificar si el día es anterior a hoy
   const weekDays = this.getWeekDays();
   const selectedDate = weekDays[cell.day].date;
-  
+
   if (this.isDateBeforeToday(selectedDate)) {
     Swal.fire({
       toast: true,
@@ -1466,7 +1663,6 @@ onCalendarMouseDown(event: MouseEvent) {
     return;
   }
 
-  // Verificar si hay evento existente en esa celda
   const tempEvent: Partial<CalendarEvent> = {
     date: selectedDate,
     startTime: this.formatTimeStringWithMinutes(Math.floor(cell.hour), 0),
@@ -1483,10 +1679,7 @@ onCalendarMouseDown(event: MouseEvent) {
 
 @HostListener('mousemove', ['$event'])
 onCalendarMouseMove(event: MouseEvent) {
-  // Verificar si el modal está abierto
-  if (this.isModalOpen) {
-    return; // No hacer nada si el modal está abierto
-  }
+  if (event.button !== 0 || this.isModalOpen) return; // Solo permitir si el botón izquierdo está presionado
 
   if (this.isDragCreating && this.dragStartCell) {
     const cell = this.findTimeCell(event);
@@ -1502,26 +1695,24 @@ onCalendarMouseMove(event: MouseEvent) {
 
 @HostListener('mouseup', ['$event'])
 onCalendarMouseUp(event: MouseEvent) {
+  if (event.button !== 0) return; // Solo permitir click izquierdo
+
   if (this.isDragCreating && this.dragStartCell && this.dragEndCell) {
     const weekDays = this.getWeekDays();
     const selectedDate = weekDays[this.dragStartCell.day].date;
     
-    // Ajustamos las horas para que coincidan con la visualización
-    const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour)
-    const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour)
+    const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour);
+    const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour);
     
-    // Calculamos los minutos basados en la parte decimal de la hora
     const startMinutes = Math.round((this.dragStartCell.hour % 1) * 60);
     const endMinutes = Math.round((this.dragEndCell.hour % 1) * 60);
     
-    // Ajustamos al intervalo de 15 minutos más cercano
     const startMin = Math.round(startMinutes / 15) * 15;
     const endMin = Math.round(endMinutes / 15) * 15;
     
     this.selectedDate = selectedDate;
     this.day = this.formatDate(selectedDate);
     
-    // Formatear los tiempos con los minutos ajustados
     this.selectedStartTime = this.formatTimeStringWithMinutes(Math.floor(startHour), startMin);
     this.selectedEndTime = this.formatTimeStringWithMinutes(Math.floor(endHour), endMin);
     this.time = this.selectedStartTime;
@@ -1532,6 +1723,7 @@ onCalendarMouseUp(event: MouseEvent) {
   
   this.cleanupDragCreate();
 }
+
 
 
 private formatTimeStringWithMinutes(hour: number, minutes: number): string {
