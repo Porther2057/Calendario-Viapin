@@ -64,45 +64,48 @@
     </h1>
   </header>
 
-<div class="monthly-calendar">
-  <div class="calendar-controls">
-    <div class="title-container">
-      <h2>{{ currentMonthName }} {{ currentYear }}</h2>
+  <div class="monthly-calendar">
+    <div class="calendar-controls">
+      <div class="title-container">
+        <h2>{{ currentMonthName }} {{ currentYear }}</h2>
+      </div>
+      <div class="nav-buttons">
+        <button (click)="changeMonth(-1)" class="nav-button prev">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <button (click)="changeMonth(1)" class="nav-button next">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
     </div>
-    <div class="nav-buttons">
-      <button (click)="changeMonth(-1)" class="nav-button prev">
-        <i class="fas fa-chevron-left"></i>
-      </button>
-      <button (click)="changeMonth(1)" class="nav-button next">
-        <i class="fas fa-chevron-right"></i>
-      </button>
-    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>DOM</th>
+          <th>LUN</th>
+          <th>MAR</th>
+          <th>MIÉ</th>
+          <th>JUE</th>
+          <th>VIE</th>
+          <th>SAB</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let week of calendarDays; let weekIndex = index">
+          <td *ngFor="let day of week; let dayIndex = index"
+              (click)="onDaySelect(day, weekIndex, dayIndex)"
+              [ngClass]="{
+                'not-current-month': !day.isCurrentMonth,
+                'holiday': day.isHoliday && day.isCurrentMonth,
+                'selected-week': isDayInSelectedWeek(day)
+              }">
+            {{ day.day ? day.day : '' }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
-  <table>
-    <thead>
-      <tr>
-        <th>DOM</th>
-        <th>LUN</th>
-        <th>MAR</th>
-        <th>MIÉ</th>
-        <th>JUE</th>
-        <th>VIE</th>
-        <th>SAB</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let week of calendarDays">
-        <td *ngFor="let day of week" 
-        [ngClass]="{
-          'not-current-month': !day.isCurrentMonth,
-          'holiday': day.isHoliday && day.isCurrentMonth
-        }">
-      {{ day.day ? day.day : '' }}
-    </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+  
 
 
     <!-- Activities -->
@@ -286,7 +289,9 @@
            [ngStyle]="getEventStyle(event)"
            [attr.data-event-id]="event.id"
            [title]="event.name"
-           (mousedown)="startDragEvent($event, event)">
+           (mousedown)="startDragEvent($event, event)"
+           (mouseenter)="onEventMouseEnter(event)"
+           (mouseleave)="onEventMouseLeave()">
         <div class="resize-handle top" (mousedown)="startResize($event, event, 'top')"></div>
         <div>{{ event.name }}</div>
         <div style="flex-grow: 1"></div>
@@ -307,9 +312,9 @@
     </div>
     
     <!-- Modal para actualizar eventos -->
-<div class="modal" *ngIf="isEditModalOpen" (click)="onModalBackgroundClick($event)">
-  <div class="modal-content" (click)="onModalContentClick($event)">
-    <button class="close-button" (click)="closeEditModal()">×</button>
+    <div class="modal" *ngIf="isEditModalOpen" (click)="onEditModalBackgroundClick($event)">
+      <div class="modal-content" (click)="onEditModalContentClick($event)">
+        <button class="close-button" (click)="closeEditModal()">×</button>
     <h1 class="modal-title">Actualizar Actividad</h1>
 
     <form (ngSubmit)="updateEvent()">
@@ -379,7 +384,11 @@
         </div>
       </div>
 
-      <button type="submit" class="submit-button">Actualizar Actividad</button>
+      <div class="button-group">
+        <button type="button" class="delete-button" (click)="deleteEventFromModal()">Eliminar Actividad</button>
+        <button type="submit" class="submit-button">Actualizar Actividad</button>
+      </div>
+      
     </form>
   </div>
 </div>
