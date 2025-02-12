@@ -79,6 +79,8 @@ export class DashboardContentComponent implements OnInit {
   startTime: string = '';
   endTime: string = '';
   
+  selectedWeekStart: Date | null = null;
+  selectedWeekDays: { day: number, isCurrentMonth: boolean, isHoliday: boolean }[] = [];
 
   //REDIMENCION DE EVENTOS
   isResizing: boolean = false;
@@ -96,7 +98,7 @@ export class DashboardContentComponent implements OnInit {
   editTime: string = '';
   editEndDay: string = '';
   currentEditingEvent: CalendarEvent | null = null;
-
+  currentHoveredEvent: CalendarEvent | null = null;
   events: CalendarEvent[] = [];
 
   /* ASGINACIÓN AUYTOMATICA DE ESTILOS VISUALES PARA EL TIPO DE EVENTO*/
@@ -147,7 +149,76 @@ export class DashboardContentComponent implements OnInit {
     
   }
 
+ // Método corregido para manejar la selección de un día
+onDaySelect(day: { day: number, isCurrentMonth: boolean, isHoliday: boolean }, weekIndex: number, dayIndex: number): void {
+  if (!day.isCurrentMonth) return;
+
+  const selectedDate = new Date(this.currentYear, this.currentDate.getMonth(), day.day);
   
+  // Obtener el lunes de la semana (restando los días desde el lunes)
+  const dayOfWeek = selectedDate.getDay(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Ajuste para que la semana empiece en lunes
+  
+  // Establecer la fecha al lunes de la semana seleccionada
+  selectedDate.setDate(selectedDate.getDate() - daysToMonday);
+  
+  // Guardar el inicio de la semana seleccionada
+  this.selectedWeekStart = new Date(selectedDate);
+  
+  // Actualizar currentDate para que coincida con la semana seleccionada
+  this.currentDate = new Date(this.selectedWeekStart);
+  
+  // Obtener los 7 días de la semana seleccionada
+  this.selectedWeekDays = [];
+  for (let i = 0; i < 7; i++) {
+    const currentDate = new Date(selectedDate);
+    currentDate.setDate(selectedDate.getDate() + i);
+    
+    // Determinar si el día es del mes actual
+    const isCurrentMonth = currentDate.getMonth() === this.currentDate.getMonth();
+    
+    this.selectedWeekDays.push({
+      day: currentDate.getDate(),
+      isCurrentMonth: isCurrentMonth,
+      isHoliday: false // Mantener el estado de festivo según necesites
+    });
+  }
+
+  // Actualizar el mes y año actual
+  this.currentMonthName = this.getMonthName(this.currentDate.getMonth());
+  this.currentYear = this.currentDate.getFullYear();
+  
+  // Actualizar el calendario
+  this.updateCalendar();
+  
+  // Forzar la actualización de la vista
+  this.cdr.detectChanges();
+}
+
+// Método actualizado para verificar si un día está en la semana seleccionada
+isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: boolean }): boolean {
+  if (!this.selectedWeekStart) return false;
+
+  const currentDate = new Date(this.currentYear, this.currentDate.getMonth(), day.day);
+  const weekEnd = new Date(this.selectedWeekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6); // Añadir 6 días para llegar al domingo
+
+  // Ajustar la fecha si el día pertenece al mes anterior o siguiente
+  if (!day.isCurrentMonth) {
+    if (day.day > 20) { // Probablemente es del mes anterior
+      currentDate.setMonth(currentDate.getMonth() - 1);
+    } else { // Probablemente es del mes siguiente
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+  }
+
+  // Comparar solo las fechas sin considerar la hora
+  const compareDate = currentDate.setHours(0, 0, 0, 0);
+  const startDate = new Date(this.selectedWeekStart).setHours(0, 0, 0, 0);
+  const endDate = weekEnd.setHours(0, 0, 0, 0);
+
+  return compareDate >= startDate && compareDate <= endDate;
+}
 
   /**DEVUELVE EL OMBRE DEL MES CORRESPONDIENTE A UN INDICE, POR EJEMPLO 0 PARA ENERO, 1 PARA FEBRERO, ETC... */
   getMonthName(monthIndex: number): string {
@@ -683,7 +754,7 @@ private formatTimeString(hour: number): string {
   return `${displayHour.toString().padStart(2, '0')}:00 ${isPM ? 'PM' : 'AM'}`;
 }
 
-/**INICIALIZAR PROCESO DE ARRASTRE DE UN EVENTO */
+
  // Método para abrir el modal de edición
  openEditModal(event: CalendarEvent) {
   this.currentEditingEvent = event;
@@ -717,6 +788,19 @@ resetEditForm(): void {
   this.editTime = '';
   this.editEndDay = '';
 }
+
+// Método para cerrar el modal al hacer click fuera de él
+onEditModalBackgroundClick(event: MouseEvent): void {
+  if (event.target === event.currentTarget) {
+    this.closeEditModal();
+  }
+}
+
+// Método para evitar propagación del modal hacia el fondo
+onEditModalContentClick(event: MouseEvent): void {
+  event.stopPropagation();
+}
+
 
 // Manejo de cambios en la fecha de edición
 onEditDateChange(event: any): void {
@@ -1007,13 +1091,11 @@ getEventStyle(event: CalendarEvent): any {
   const startHour = this.getHourFromTimeString(event.startTime);
   const endHour = this.getHourFromTimeString(event.endTime);
   
-  // Extraer horas de inicio y fin
   const [startMinutes, endMinutes] = [
     parseInt(event.startTime.split(':')[1].split(' ')[0]),
     parseInt(event.endTime.split(':')[1].split(' ')[0])
   ];
 
-  // Calcular el desplazamiento vertical y la altura proporcionalmente
   const minuteOffset = startMinutes / 60;
   const minuteDuration = ((endHour - startHour) * 60 + (endMinutes - startMinutes)) / 60;
 
@@ -1036,9 +1118,88 @@ getEventStyle(event: CalendarEvent): any {
     margin: '0',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    // Agregamos los eventos del mouse
+    onmouseenter: () => this.onEventMouseEnter(event),
+    onmouseleave: () => this.onEventMouseLeave()
   };
 }
+deleteEventFromModal(): void {
+  if (this.currentEditingEvent) {
+    // Llamamos al método deleteEvent existente
+    this.deleteEvent(this.currentEditingEvent);
+    // Cerramos el modal después de iniciar el proceso de eliminación
+    this.closeEditModal();
+  }
+}
+
+// Método para cuando el mouse entra en un evento
+onEventMouseEnter(event: CalendarEvent): void {
+  this.currentHoveredEvent = event;
+  // Agregar el listener de teclado solo cuando estamos sobre un evento
+  document.addEventListener('keyup', this.handleKeyPress);
+}
+
+// Método para cuando el mouse sale de un evento
+onEventMouseLeave(): void {
+  this.currentHoveredEvent = null;
+  // Remover el listener cuando salimos del evento
+  document.removeEventListener('keyup', this.handleKeyPress);
+}
+
+// Método para manejar la tecla presionada
+ handleKeyPress = (e: KeyboardEvent) => {
+  if (e.key === 'Delete' && this.currentHoveredEvent) {
+    this.deleteEvent(this.currentHoveredEvent);
+  }
+}
+
+// Método para eliminar el evento
+ deleteEvent(event: CalendarEvent): void {
+  Swal.fire({
+    title: '¿Estás seguro de eliminar este evento?',
+    text: `Evento: ${event.name}`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      // Asumiendo que event.id es un número
+      const eventId = Number(event.id);
+      
+      this.apiService.deleteEvent(eventId).subscribe({
+        next: () => {
+          // Eliminar el evento del array local usando el id
+          this.events = this.events.filter(e => e.id !== event.id);
+          
+          Swal.fire({
+            toast: true,
+            position: 'top',
+            icon: 'success',
+            title: 'Evento eliminado correctamente',
+            showConfirmButton: false,
+            timer: 3000
+          });
+          
+          this.calculateActivityPercentages();
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          console.error('Error al eliminar el evento:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo eliminar el evento. Por favor, intente nuevamente.',
+            showConfirmButton: true
+          });
+        }
+      });
+    }
+  });
+}
+
+
  formatEventTime(event: CalendarEvent): string {
     return `${event.startTime} - ${event.endTime}`;
   }
@@ -1067,8 +1228,38 @@ getEventStyle(event: CalendarEvent): any {
   }
 
   changeWeek(direction: number): void {
-    this.currentDate.setDate(this.currentDate.getDate() + direction * 7);
+    // Si hay una semana seleccionada, usar esa fecha como punto de partida
+    const referenceDate = this.selectedWeekStart || this.currentDate;
+    const newDate = new Date(referenceDate);
+    newDate.setDate(newDate.getDate() + direction * 7);
+    
+    // Actualizar tanto currentDate como selectedWeekStart
+    this.currentDate = new Date(newDate);
+    this.selectedWeekStart = this.getStartOfWeek(newDate);
+    
+    // Actualizar el mes y año
+    this.currentMonthName = this.getMonthName(this.currentDate.getMonth());
+    this.currentYear = this.currentDate.getFullYear();
+    
+    // Actualizar el calendario
     this.updateCalendar();
+    
+    // Actualizar selectedWeekDays
+    const startOfWeek = this.getStartOfWeek(newDate);
+    this.selectedWeekDays = [];
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(startOfWeek);
+      currentDate.setDate(startOfWeek.getDate() + i);
+      
+      const dayInCalendar = {
+        day: currentDate.getDate(),
+        isCurrentMonth: currentDate.getMonth() === this.currentDate.getMonth(),
+        isHoliday: false // Ajustar según sea necesario
+      };
+      
+      this.selectedWeekDays.push(dayInCalendar);
+    }
+    
     this.cdr.detectChanges();
   }
   
