@@ -32,8 +32,21 @@ export class ApiService {
     }
     return this.http.put(`${this.apiUrl}/events/${event.id}`, event);
   }
-    // Nuevo método específico para actualizar desde el modal
+
     updateEventFromModal(event: any): Observable<any> {
       return this.http.put(`${this.apiUrl}/events/modal/${event.id}`, event);
     }
+    deleteEvent(id: number): Observable<any> {
+      if (!id || typeof id !== 'number') {
+        console.error('ID inválido:', id);
+        return of({ error: 'ID del evento faltante o incorrecto' });
+      }
+      return this.http.delete(`${this.apiUrl}/events/${id}`);
+    }
+
+    getAllEvents(): Observable<any> {
+      return this.get('events');
+    }
+    
+    
 }

@@ -16,6 +16,7 @@ router.post('/events', (req, res) => {
     
     connection.query(query, [name, type, date, startTime, endTime, color], (err, result) => {
       if (err) {
+        console.error('Error en la consulta SQL:', err);
         return res.status(500).json({ error: 'Error al guardar el evento' });
       }
       res.status(201).json({ id: result.insertId }); 
@@ -87,6 +88,40 @@ router.post('/events', (req, res) => {
     );
   });
   
+  router.delete('/events/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+  
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+  
+    connection.query(
+      'DELETE FROM calendar_events WHERE id = ?',
+      [id],
+      (err, result) => {
+        if (err) {
+          return res.status(500).json({ error: 'Error al eliminar el evento' });
+        }
+  
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ message: 'Evento no encontrado' });
+        }
+  
+        res.status(200).json({ message: 'Evento eliminado correctamente' });
+      }
+    );
+  });
+  
+  router.get('/events', (req, res) => {
+    const query = 'SELECT * FROM calendar_events';
+  
+    connection.query(query, (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error al obtener los eventos' });
+      }
+      res.status(200).json(results);
+    });
+  });
   
 
 export default  router;
