@@ -291,7 +291,8 @@
            [title]="event.name"
            (mousedown)="startDragEvent($event, event)"
            (mouseenter)="onEventMouseEnter(event)"
-           (mouseleave)="onEventMouseLeave()">
+           (mouseleave)="onEventMouseLeave()"
+           (contextmenu)="$event.preventDefault()">
         <div class="resize-handle top" (mousedown)="startResize($event, event, 'top')"></div>
         <div>{{ event.name }}</div>
         <div style="flex-grow: 1"></div>
@@ -393,6 +394,7 @@
   </div>
 </div>
  
+
   
 </body>
 </html>
