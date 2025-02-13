@@ -621,6 +621,7 @@ onMouseMove(event: MouseEvent) {
     let newStartMinutes = currentStartMinutes;
     let newEndMinutes = currentEndMinutes;
     
+    // Calculate new times based on resize direction
     if (this.resizeType === 'top') {
       newStartMinutes = currentStartMinutes + (quarterHourDelta * 15);
       newStartMinutes = Math.max(
@@ -635,18 +636,28 @@ onMouseMove(event: MouseEvent) {
       );
     }
     
+    // Round to nearest 15 minutes
     newStartMinutes = Math.round(newStartMinutes / 15) * 15;
     newEndMinutes = Math.round(newEndMinutes / 15) * 15;
     
-    const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
+    // Check for collisions with other events
+    const hasCollision = this.checkResizeCollision({
+      ...this.resizingEvent,
+      startTime: formatTimeWithMinutes(newStartMinutes),
+      endTime: formatTimeWithMinutes(newEndMinutes)
+    });
     
-    if (eventIndex !== -1) {
-      this.events[eventIndex] = { 
-        ...this.events[eventIndex], 
-        startTime: formatTimeWithMinutes(newStartMinutes),
-        endTime: formatTimeWithMinutes(newEndMinutes)
-      };
-      this.cdr.detectChanges();
+    if (!hasCollision) {
+      const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
+      
+      if (eventIndex !== -1) {
+        this.events[eventIndex] = { 
+          ...this.events[eventIndex], 
+          startTime: formatTimeWithMinutes(newStartMinutes),
+          endTime: formatTimeWithMinutes(newEndMinutes)
+        };
+        this.cdr.detectChanges();
+      }
     }
   } else if (this.isDragCreating && this.dragStartCell) {
     const cell = this.findTimeCell(event);
@@ -1576,6 +1587,34 @@ private checkTimeCollision(newEvent: Partial<CalendarEvent>): boolean {
       (newEndMinutes > existingStartMinutes && newEndMinutes < existingEndMinutes) ||
       (newStartMinutes < existingStartMinutes && newEndMinutes > existingEndMinutes)
     );
+  });
+}
+
+private checkResizeCollision(proposedEvent: CalendarEvent): boolean {
+  // Get all events for the same day except the one being resized
+  const eventsOnSameDay = this.events.filter(event => 
+    event.id !== proposedEvent.id && 
+    new Date(event.date).toDateString() === new Date(proposedEvent.date).toDateString()
+  );
+
+  const getMinutesFromTime = (timeString: string): number => {
+    const [time, period] = timeString.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    else if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  const proposedStart = getMinutesFromTime(proposedEvent.startTime);
+  const proposedEnd = getMinutesFromTime(proposedEvent.endTime);
+
+  // Check for overlap with each existing event
+  return eventsOnSameDay.some(event => {
+    const eventStart = getMinutesFromTime(event.startTime);
+    const eventEnd = getMinutesFromTime(event.endTime);
+
+    // Check if the proposed event overlaps with this event
+    return (proposedStart < eventEnd && proposedEnd > eventStart);
   });
 }
 

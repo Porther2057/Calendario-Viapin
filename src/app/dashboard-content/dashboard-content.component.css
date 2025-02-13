@@ -486,8 +486,11 @@ body {
     font-size: 1.25rem; 
     font-weight: bold;
     background: #F8F9FA;
-    padding-top: 10px
-  }
+    padding-top: 10px;
+    position: sticky;
+    z-index: 10;
+    top: 0
+}
 
   .today {
     color: #8298E1;  
