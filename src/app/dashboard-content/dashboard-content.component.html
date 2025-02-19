@@ -147,16 +147,36 @@
       </ul>
     </div>
 
-    <!-- Extra -->
-    <div class="extra">
-      <h3>Aca va el extra</h3>
-      <ul>
-        <li><span class="color estrategica"></span> </li>
-        <li><span class="color administrativa"></span> </li>
-        <li><span class="color operativa"></span> </li>
-        <li><span class="color personal"></span> </li>
-      </ul>
-    </div>
+<!-- Extra -->
+<div class="extra">
+  <!-- Mostrar "Usuarios" solo si el usuario es administrativo -->
+  <h3 *ngIf="currentUserRole === 'ADMINISTRATIVO'">Usuarios</h3>
+
+  <!-- Mostrar "Extra" si el usuario no es administrativo -->
+  <h3 *ngIf="currentUserRole !== 'ADMINISTRATIVO'">Extra</h3>
+
+  <!-- Mostrar el select solo si el usuario es administrativo -->
+  <select 
+    *ngIf="currentUserRole === 'ADMINISTRATIVO'" 
+    id="usuarios" 
+    [ngModel]="selectedUser" 
+    (ngModelChange)="onUserSelect($event)"
+  >
+    <option [value]="null">Seleccione un usuario</option>
+    <option *ngFor="let user of usuarios" [value]="user.usuario">{{ user.usuario }}</option>
+  </select>
+
+  <!-- Mensaje informativo para usuarios sin permisos -->
+  <small 
+    *ngIf="currentUserRole !== 'ADMINISTRATIVO'" 
+    class="text-muted mt-2 d-block">
+    Solo usuarios administrativos pueden ver eventos de otros usuarios
+  </small>
+</div>
+
+
+
+    
 
     <div class="calendar-container">
       <div class="calendar-header">
