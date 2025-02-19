@@ -555,6 +555,42 @@ body {
   background-color: rgba(0, 0, 0, 0.1);
 }
 
+/* Estilo para el select */
+#usuarios {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  color: #555;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background-color: #fff;
+  transition: border-color 0.3s ease;
+  appearance: none;
+  background-image: url('https://img.icons8.com/ios/50/000000/expand-arrow.png');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 20px;
+  padding-right: 30px;
+}
+
+/* Estilo para cuando el select está enfocado */
+#usuarios:focus {
+  border-color: #0056b3;
+  outline: none;
+}
+
+/* Estilo para las opciones dentro del select */
+#usuarios option {
+  padding: 10px;
+  font-size: 1rem;
+  color: #333;
+  background-color: #fff;
+}
+
+/* Estilo para las opciones al pasar el mouse sobre ellas */
+#usuarios option:hover {
+  background-color: #f0f0f0;
+}
   
 
 /* =================
