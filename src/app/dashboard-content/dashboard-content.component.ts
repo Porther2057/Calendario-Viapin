@@ -14,6 +14,7 @@ interface CalendarEvent {
   startTime: string;
   endTime: string;
   color: string;
+  userId: string;
 }
 
 interface WeekDay {
@@ -40,13 +41,24 @@ interface ActivityStats {
 })
 export class DashboardContentComponent implements OnInit {
 
+  //IMPORTANTE, AQUI ESTAN LAS VARIABLES GLOBALES PARA EL USUARIO 
+  currentUser: string = 'porther'; 
+  currentUserRole: string = '';
+  
+  // Propiedad para almacenar la lista de usuarios
+  usuarios: any[] = [];
+  selectedUser: string | null = null; 
+
+  //Propiedad para el día actual
   today: string = new Date().toISOString().split('T')[0];
+
+  //Api URL
   private apiUrl = 'http://localhost:3000/api';
 
-  /**PROPIEDADES Y LOGICA PARA EL MANEJO DE FUNCIONALIDADES DEL CALENDARIO SEMANAL */
+  //Propiedades generales 
   private readonly BASE_HOUR = 3; // Hora base del calendario (3 AM)
   
-  /**Propiedades de arrastre (drag) */
+  //Propiedades de arrastre (drag) 
   isDragging = false;
   draggedEvent: CalendarEvent | null = null;
   dragStartPosition: { x: number, y: number } = { x: 0, y: 0 };
@@ -60,7 +72,7 @@ export class DashboardContentComponent implements OnInit {
   private dayWidth: number = 0;
   private validDropZone: boolean = false;
 
-/**CREACION DE EVENTOS MEDIANTE ARRASTRE */
+//Creacion de eventos mediante arrastre 
   isDragCreating: boolean = false;
   dragStartCell: { day: number, hour: number } | null = null;
   dragEndCell: { day: number, hour: number } | null = null;
@@ -74,7 +86,7 @@ export class DashboardContentComponent implements OnInit {
   time: string = '';
   endDay: string = '';
 
- /**VARIABLES PARA LOS HORARIOS DEL EVENTO */
+ //Propiedades para los horarios del evento 
   availableTimes: string[] = [];
   startTime: string = '';
   endTime: string = '';
@@ -82,7 +94,7 @@ export class DashboardContentComponent implements OnInit {
   selectedWeekStart: Date | null = null;
   selectedWeekDays: { day: number, isCurrentMonth: boolean, isHoliday: boolean }[] = [];
 
-  //REDIMENCION DE EVENTOS
+  //Redimensionamiento de eventos
   isResizing: boolean = false;
   resizeStartY: number = 0;
   resizeStartTime: string = '';
@@ -101,7 +113,7 @@ export class DashboardContentComponent implements OnInit {
   currentHoveredEvent: CalendarEvent | null = null;
   events: CalendarEvent[] = [];
 
-  /* ASGINACIÓN AUYTOMATICA DE ESTILOS VISUALES PARA EL TIPO DE EVENTO*/
+//Asignación automatica para los estilos del evento según su tipo
   private typeColors: { [key: string]: { backgroundColor: string, borderColor: string } } = {
     'estrategica': { backgroundColor: '#EFD9D9', borderColor: '#EF0A06' },
     'administrativa': { backgroundColor: '#D8EDD7', borderColor: '#0AD600' },
@@ -110,16 +122,15 @@ export class DashboardContentComponent implements OnInit {
     'perso': { backgroundColor: '#E9F5FA', borderColor: '#000000' } 
   };
   
-
-/**VARIABLES PARA EL MODAL, NECESARIAS PARA CONTROLARLO */
+//Variables del modal de crear evento
   isCreateEventModalOpen: boolean = false;
-  isModalOpen: boolean = false; // Controla la visibilidad del modal
+  isModalOpen: boolean = false; 
   selectedDate: Date | null = null;
   selectedStartTime: string = '';
   selectedEndTime: string = '';
   private originalEventDuration: number = 0;
 
- /**VARIABLES PARA LOS PORCENTAJES DEL EVENTO (CONTENEDOR ACTIVITIES) */
+ //Variables para los porcentajes de cada evento
    activityPercentages: ActivityStats = {
     estrategica: 0,
     administrativa: 0,
@@ -127,27 +138,227 @@ export class DashboardContentComponent implements OnInit {
     personal: 0
   };
  
-
-  /**VARIABLES PARA LOS DATOS DEL MODAL PARA CREAR EVENTOS */
+  //Variables para la creacion del evento en el modal
    eventName: string = '';
    activityType: string = '';
 
-   /*CONSTRUCTOR PARA DETECTAR Y GESTIONAR LOS CAMBIOS MANUALES DEL COMPONENTE */
+   //Constructor general del componente
    constructor(private cdr: ChangeDetectorRef, private apiService: ApiService) {
     this.currentDate = new Date();
     this.currentMonthName = this.getMonthName(this.currentDate.getMonth());
     this.currentYear = this.currentDate.getFullYear();
   }
     
-  
-
-  /*CICLO DE VIDA */
-  ngOnInit(): void {
-    this.apiService.testConnection().subscribe({next: (resp) => console.log('Conexion ok', resp), error: (err) => console.error('Error',)})
-    this.updateCalendar(); /**METODO PARA ACTUALIZAR EL CALENDARIO EN LA INTERFAZ */
-    this.generateAvailableTimes(); /**GENERA LOS HORARIOS DISPONIBLES */
-    
+ //Ciclo de vida del componente, carga servicios.
+ ngOnInit(): void {
+  this.apiService.testConnection().subscribe({
+    next: (resp) => console.log('Conexion ok', resp),
+    error: (err) => console.error('Error', err)
+  });
+  this.updateCalendar();
+  this.generateAvailableTimes();
+  // Primero verificamos si el usuario actual existe en la base de datos
+  this.apiService.getUserDetails(this.currentUser).subscribe({
+    next: (user) => {
+      // Si el usuario existe, continuamos con la carga normal
+      this.updateCalendar();
+      this.generateAvailableTimes();
+      this.loadUserEvents();
+      this.loadUsers();
+      this.loadUserRole();
+    },
+    error: (err) => {
+      // Si el usuario no existe, mostramos la alerta
+      Swal.fire({
+        icon: 'error',
+        title: 'Sesión no válida',
+        text: 'El usuario no existe en la base de datos',
+        confirmButtonText: 'Entendido'
+      });
+      console.error('Error de sesión:', err);
+    }
+  });
+}
+ // Método para manejar la selección de usuario
+ onUserSelect(userId: string): void {
+  if (this.currentUserRole !== 'ADMINISTRATIVO') {
+    Swal.fire({
+      toast: true,
+      position: 'top',
+      icon: 'warning',
+      title: 'No tienes permisos para ver otros usuarios',
+      showConfirmButton: false,
+      timer: 3000
+    });
+    return; // Evita que el usuario cambie la selección
   }
+
+  this.selectedUser = userId;
+
+  if (userId) {
+    // Mostrar loading mientras se cargan los eventos
+    Swal.fire({
+      title: 'Cargando actividades...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    this.apiService.getUserEvents(userId).subscribe({
+      next: (events) => {
+        this.events = events.map(event => this.normalizeEventData(event));
+        this.calculateActivityPercentages();
+        Swal.close();
+
+        if (this.events.length === 0) {
+          Swal.fire({
+            toast: true,
+            position: 'top',
+            icon: 'info',
+            title: 'No hay eventos registrados para este usuario',
+            showConfirmButton: false,
+            timer: 3000
+          });
+        }
+      },
+      error: (error) => {
+        console.error('Error al cargar eventos:', error);
+        Swal.fire({
+          toast: true,
+          position: 'top',
+          icon: 'error',
+          title: 'Error al cargar los eventos del usuario',
+          showConfirmButton: false,
+          timer: 3000
+        });
+      }
+    });
+  } else {
+    // Si no hay usuario seleccionado, volver a cargar los eventos del usuario actual
+    this.loadUserEvents();
+  }
+}
+
+// Método actualizado para cargar eventos
+loadUserEvents(): void {
+  const userToLoad = this.selectedUser || this.currentUser;
+  
+  Swal.fire({
+    title: 'Cargando eventos...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
+  this.apiService.getUserEvents(userToLoad).subscribe({
+    next: (events) => {
+      this.events = events.map(event => this.normalizeEventData(event));
+      this.calculateActivityPercentages();
+      Swal.close();
+      
+      if (this.events.length === 0) {
+        Swal.fire({
+          toast: true,
+          position: 'top',
+          icon: 'info',
+          title: 'No se encontraron actividades',
+          showConfirmButton: false,
+          timer: 3000
+        });
+      }
+    },
+    error: (error) => {
+      console.error('Error al cargar eventos:', error);
+      Swal.fire({
+        toast: true,
+        position: 'top',
+        icon: 'error',
+        title: 'Error al cargar los eventos',
+        showConfirmButton: false,
+        timer: 3000
+      });
+    }
+  });
+}
+
+// Método actualizado para normalizar los datos del evento
+private normalizeEventData(event: any): CalendarEvent {
+  return {
+    id: event.id,
+    name: event.name,
+    type: event.type,
+    date: new Date(event.date),
+    startTime: this.convertTimeFormat(event.start_time || event.startTime),
+    endTime: this.convertTimeFormat(event.end_time || event.endTime),
+    color: this.getEventColor(event.type), // Método auxiliar para obtener el color
+    userId: event.userId
+  };
+}
+
+// Método auxiliar para obtener el color según el tipo de evento
+private getEventColor(type: string): string {
+  return this.typeColors[type as keyof typeof this.typeColors]?.backgroundColor || '#E4E4E4';
+}
+
+//Metodo auxiliar para cargar el rol
+loadUserRole(): void {
+  this.apiService.getUserRole(this.currentUser).subscribe({
+    next: (response: any) => {
+
+      this.currentUserRole = response.role;
+      console.log('Rol del usuario:', this.currentUserRole);
+      this.cdr.detectChanges(); 
+    },
+    error: (error) => {
+      console.error('Error al cargar el rol del usuario:', error);
+
+      this.currentUserRole = '';
+    }
+  });
+}
+
+//Metodo para convertir los horarios (AM-PM/PM-AM)
+private convertTimeFormat(time: string): string {
+  if (!time) return '';
+  
+  // Si ya está en formato AM/PM, retornarlo
+  if (time.includes('AM') || time.includes('PM')) return time;
+  
+  // Convertir la hora
+  const [hours, minutes] = time.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  
+  // Usar padStart para asegurar que tanto horas como minutos tengan dos dígitos
+  return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
+// Método para obtener los usuarios
+loadUsers(): void {
+  this.apiService.getAllUsers().subscribe({
+    next: (usuarios) => {
+      this.usuarios = usuarios;
+    },
+    error: (error) => {
+      console.error('Error al cargar usuarios:', error);
+      Swal.fire({
+        toast: true,
+        position: 'top',
+        icon: 'error',
+        title: 'Error al cargar usuarios',
+        showConfirmButton: false,
+        timer: 3000
+      });
+    }
+  });
+}
+
+// Agregar esta función para verificar si estamos viendo eventos de otro usuario
+private isViewingOtherUserEvents(): boolean {
+  return this.selectedUser !== null && this.selectedUser !== this.currentUser;
+}
 
  // Método corregido para manejar la selección de un día
 onDaySelect(day: { day: number, isCurrentMonth: boolean, isHoliday: boolean }, weekIndex: number, dayIndex: number): void {
@@ -220,7 +431,7 @@ isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: bool
   return compareDate >= startDate && compareDate <= endDate;
 }
 
-  /**DEVUELVE EL OMBRE DEL MES CORRESPONDIENTE A UN INDICE, POR EJEMPLO 0 PARA ENERO, 1 PARA FEBRERO, ETC... */
+  //Metodo para devolver el nombre del mes ccorrespondiente a un indice, 0 para enero, 1 para febrero, etc..
   getMonthName(monthIndex: number): string {
     const months = [
       'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -229,15 +440,15 @@ isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: bool
     return months[monthIndex];
   }
 
-  /**PARA CAMBIAR EL MES DEL CALENDARIO (FLECHAS) EN LA DIRECCION ESPECIFICADA, PARA AVANZAR +1, PARA RETROCEDER -1 */
+  //Metodo para cambiar el mes con la flechas (+1 para avanzar, - 1 para retroceder)
   changeMonth(direction: number): void {
     const newMonth = this.currentDate.getMonth() + direction;
 
     if (newMonth > 11) {
-      this.currentDate.setFullYear(this.currentDate.getFullYear() + 1); /**Avanzar (flecha apuntando a derecha) */
+      this.currentDate.setFullYear(this.currentDate.getFullYear() + 1); //Avanzar (flecha apuntando a derecha) 
       this.currentDate.setMonth(0);
     } else if (newMonth < 0) {
-      this.currentDate.setFullYear(this.currentDate.getFullYear() - 1); /**Retroceder (flecha apuntando a izquierda) */
+      this.currentDate.setFullYear(this.currentDate.getFullYear() - 1); //Retroceder (flecha apuntando a izquierda) 
       this.currentDate.setMonth(11);
     } else {
       this.currentDate.setMonth(newMonth);
@@ -245,31 +456,31 @@ isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: bool
 
     this.currentMonthName = this.getMonthName(this.currentDate.getMonth());
     this.currentYear = this.currentDate.getFullYear();
-    this.updateCalendar(); /*Actualiza el calendario)*/
+    this.updateCalendar(); //Actualiza el calendario)
 
-    this.cdr.detectChanges(); /**Fuerza la deteccion de cambios en la vista */
+    this.cdr.detectChanges(); //Fuerza la deteccion de cambios en la vista 
   }
 
-  /**ACTUALIZAR CALENDARIO */
+ //Metodo para actualizar la interfaz del calendario
   updateCalendar(): void {
-    /**OBTENCIÓN DE DATOS DEL MES ACTUAL */
-    const daysInMonth = new Date(this.currentYear, this.currentDate.getMonth() + 1, 0).getDate(); /**CANTIDAD TOTAL DE DÍAS DEL MES ACTUAL */
-    const firstDayOfMonth = new Date(this.currentYear, this.currentDate.getMonth(), 1).getDay(); /**DEVUELVE EL DÍA DE LA SEMANA DEL PRIMER DÍA DEL MES (0 PARA DOMINGO, 6 PARA SABADO) */
-    const lastDayOfMonth = new Date(this.currentYear, this.currentDate.getMonth() + 1, 0).getDay(); /**DEVUELVE EL DÍA DE LA SEMANA DEL ULTIMO DÍA DEL MES */
+    //Obtencion de datos del mes actual
+    const daysInMonth = new Date(this.currentYear, this.currentDate.getMonth() + 1, 0).getDate(); //Total de días del mes actual
+    const firstDayOfMonth = new Date(this.currentYear, this.currentDate.getMonth(), 1).getDay(); //Devuelve el dia de la semana para el primer dia del mes (0 para dom, 6 para sab)
+    const lastDayOfMonth = new Date(this.currentYear, this.currentDate.getMonth() + 1, 0).getDay(); //Devuelve el dia de la semana del ultimo del mes 
   
-    /**INICIALIZAR */
-    this.calendarDays = [];  /**ALMACENA TODAS LAS SEMANAS DEL MES */
-    let week: { day: number, isCurrentMonth: boolean, isHoliday: boolean }[] = []; /**ARRAY TEMPORAL PARA ALMACENAR CADA SEMANA ANDES DE AÑADIRLA A CALENDARDAYS */
+    //Inicializar
+    this.calendarDays = [];  //Almacena todas las semanas del mes
+    let week: { day: number, isCurrentMonth: boolean, isHoliday: boolean }[] = []; //Array para almacenar cada semana en calendarDays
   
-    const holidays = this.getHolidaysForMonth(this.currentYear, this.currentDate.getMonth()); /**LISTA DE DIAS FERSTIVOS DEL MES ACTUAL, OBTENIDA MEDIANTE getHolidaysForMonto() */
+    const holidays = this.getHolidaysForMonth(this.currentYear, this.currentDate.getMonth()); //Lista de dias festivos 
   
-    /**RELLENAR DIÁS DEL MES ANTERIOR SI ES NECESARIO */
-    const prevMonthDays = new Date(this.currentYear, this.currentDate.getMonth(), 0).getDate(); /**CALCULA NUMERO TOTAL DE DIÁS DEL MES ANTERIOR */
+   
+    const prevMonthDays = new Date(this.currentYear, this.currentDate.getMonth(), 0).getDate(); //Calcula el total de dias del mes anterior
     for (let i = firstDayOfMonth - 1; i >= 0; i--) {
       week.push({ day: prevMonthDays - i, isCurrentMonth: false, isHoliday: false });
     } 
   
- /**RELLENO DÍAS DEL MES ACTUAL */
+ //Rellenar dias del mes anterior
     for (let day = 1; day <= daysInMonth; day++) {
       const isHoliday = holidays.includes(day);
       week.push({ day, isCurrentMonth: true, isHoliday });
@@ -280,19 +491,19 @@ isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: bool
       }
     }
   
-  /**RELLENO DÍAS MES SIGUIENTE */
+  //Rellenar dias del mes siguiente
     const remainingDays = 7 - week.length;
     for (let i = 1; i <= remainingDays; i++) {
       week.push({ day: i, isCurrentMonth: false, isHoliday: false });
     }
   
-  /**AGREGAR ÚLTIMA SEMANA DEL MES */
+  //Agregar ultima semana del mes
     if (week.length > 0) {
       this.calendarDays.push(week);
     }
   }
 
-  /**METODO PARA LOS DIAS FESTIVOS  (Monthly-calendar)*/
+  //Metodo para los diás festivos
   getHolidaysForMonth(year: number, month: number): number[] {
     const fixedHolidays = [
       { month: 0, day: 1 }, // Año Nuevo
@@ -305,21 +516,21 @@ isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: bool
   
     const mobileHolidays = this.calculateMobileHolidays(year);
   
-  /**COMBINAR FESTIVOS MOVILES Y FIJOS */
+  //Combinar festivos mobiles y fijos
     return [
       ...fixedHolidays.filter(h => h.month === month).map(h => h.day),
       ...mobileHolidays.filter(h => h.month === month).map(h => h.day)
     ];
   }
   
-  /**DIAS FESTIVOS MOBILES */
+  //fFestivos mobiles
   calculateMobileHolidays(year: number): { month: number, day: number }[] {
     const holidays: { month: number, day: number }[] = [];
   
-    /**CALCULO DOMINGO DE PASCUA */
+    //Domingo de pascua
     const easter = this.calculateEasterSunday(year);
   
-   /**JUEVES Y VIERNES SANTOS */
+   //Jueves y viernes santos
     const holyThursday = new Date(easter);
     holyThursday.setDate(easter.getDate() - 3);
     holidays.push({ month: holyThursday.getMonth(), day: holyThursday.getDate() });
@@ -328,68 +539,68 @@ isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: bool
     goodFriday.setDate(easter.getDate() - 2);
     holidays.push({ month: goodFriday.getMonth(), day: goodFriday.getDate() });
   
-    /**CORPUS CRISTI */
+    //Corpus Cristi
     const corpusChristi = new Date(easter);
     corpusChristi.setDate(easter.getDate() + 60);
     holidays.push({ month: corpusChristi.getMonth(), day: corpusChristi.getDate() });
   
-   /**SAGRADO CORAZÓN DE JESÚS */
+   //Sagrado corazón de Jesús
     const sacredHeart = new Date(easter);
     sacredHeart.setDate(easter.getDate() + 68);
     holidays.push({ month: sacredHeart.getMonth(), day: sacredHeart.getDate() });
   
-    /**FESTIVOS EN CORRIMIENTO PARA EL LUNES */
+    //Corrimiento para el día lunes
     holidays.push(...this.getMondayHolidays(year));
   
     return holidays;
   }
   
-  /**CALCULOS PARA LOS DÍAS LUNES FESTIVOS */
+  //Lunes festivos calculo
   getMondayHolidays(year: number): { month: number, day: number }[] {
     const holidays: { month: number, day: number }[] = [];
   
-    /**REYES MAOS */
+    //Reyes magoos
     holidays.push(this.getFirstMondayAfter(year, 0, 6));
  
-    /**SAN JOSE */
+    // San Jose
     holidays.push(this.getFirstMondayAfter(year, 2, 19));
   
- /**SAN PEDRO Y SAN PABLO */
+    //San Pedro y San Pablo
     holidays.push(this.getFirstMondayAfter(year, 5, 29));
   
-  /**ASUNCIÓN DE LA VIRGEN */
+    //Asuncion de la virgen
     holidays.push(this.getFirstMondayAfter(year, 7, 15));
   
-    /**DIA DE LA RAZA */
+    //Dia de la raza
     holidays.push(this.getFirstMondayAfter(year, 9, 12));
   
-  /**DIA DE TODOS LOS SANTOS */
+    //Dia de todos lo santos
     holidays.push(this.getFirstMondayAfter(year, 10, 1));
   
-/**INDEPENDENCIA DE CARTAGENA */
+    //Independencia de Cartagena
     holidays.push(this.getFirstMondayAfter(year, 10, 11));
   
     return holidays;
   }
   
-  /**FUNCION PARA ENCONTRAR EL LUNES LUEGO DE UNA FECHA ESPECIFICA */
+  //Metodo para encontrar el Lunes luego de una fecha especifica
   getFirstMondayAfter(year: number, month: number, day: number): { month: number, day: number } {
     const date = new Date(year, month, day);
     const dayOfWeek = date.getDay();
   
-    /**SI EL DIA YA ES LUNES, NO SE TRASLADA */
+    //Si el dia es Lunes, no se traslada
     if (dayOfWeek === 1) {
       return { month: date.getMonth(), day: date.getDate() };
     }
   
-/**CALCULO PARA LA LLEGADA DEL PRÓXIMO LUNES */
+    //Calculo para la llegada del proximo lunes
     const daysToAdd = (8 - dayOfWeek) % 7;
     date.setDate(date.getDate() + daysToAdd);
   
     return { month: date.getMonth(), day: date.getDate() };
   }
   
-  /**CALCULO PARA LA LLEGADA DEL DOMINGO DE PASCUA */
+  //Metodo para calcular el domingo de pascua
   calculateEasterSunday(year: number): Date {
     const a = year % 19;
     const b = Math.floor(year / 100);
@@ -408,14 +619,14 @@ isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: bool
     return new Date(year, month, day);
   }
   
-  
-/**METODO PARA ABRIR EL MODAL DE EVENTO */
+//Metodo para abrir el modal del evento
  openCreateEventModal(): void {
-/**RESETEA LOS CAMPOS LUEGO DE CERRARLO */
+  if (this.isViewingOtherUserEvents()) return;
+  //Resetear los campos al cerrar el modal
   this.eventName = '';
   this.activityType = '';
   
- /**ESTO SOLO RESETEA LAS HORAS SI NO VIENEN DEL DRAG */
+  //Resetear las horas si no vienen del drag
   if (!this.isDragCreating) {
     this.selectedStartTime = '';
     this.selectedEndTime = '';
@@ -426,28 +637,28 @@ isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: bool
   this.isModalOpen = true;
 }
 
-/**METODO PARA CERRAR EL MODAL */
+//Metodo para cerrar el modal
 closeModal(): void {
   this.isModalOpen = false;
   if (!this.isDragCreating) {
     this.resetForm();
   }
-  this.isDragCreating = false; /**RESET DEL FLAG DEL GRAD */
+  this.isDragCreating = false; //Reset del flag
 }
 
-/**CIERRA EL MODAL AL HACER CLICK FUERA DE ÉL */
+///Metodo adicional para cerrar el modal al hacer click fuera de él
 onModalBackgroundClick(event: MouseEvent): void {
   if (event.target === event.currentTarget) { 
     this.closeModal();
-  } /**VERIFICACIÓN DEL CLICK */
+  } 
 }
 
-/**METODO PARA EVITAR PROPAGACIÓN DEL MODAL HACIA EL FONDO DEL CONTENIDO, ESTO EVITA EL CIERRRE INVOLUNTARIO DEL MODAL */
+//Metodo para evitar propagacion del modal
 onModalContentClick(event: MouseEvent): void {
   event.stopPropagation();
 }
 
-/**PROCESAMIENTO Y CREEACION DE UN EVENTO EN EL CALENDARIO */
+//Metodo para el procesamiento y creacion de eventos en el modal
 submitForm(): void {
   if (!this.eventName || !this.activityType || !this.selectedDate || !this.selectedStartTime || !this.selectedEndTime) {
     Swal.fire({
@@ -461,7 +672,7 @@ submitForm(): void {
     });
     return;
   }
-
+  //Obtener minutos desde media noche
   const getMinutesFromMidnight = (timeString: string) => {
     const [time, period] = timeString.split(' ');
     let [hours, minutes] = time.split(':').map(Number);
@@ -474,7 +685,7 @@ submitForm(): void {
 
   const startMinutes = getMinutesFromMidnight(this.selectedStartTime);
   const endMinutes = getMinutesFromMidnight(this.selectedEndTime);
-
+ //En caso de que en el modal no se digite de forma correcta las horas, avisar y no insertar
   if (endMinutes <= startMinutes) {
     Swal.fire({
       toast: true,
@@ -493,7 +704,7 @@ submitForm(): void {
     startTime: this.selectedStartTime,
     endTime: this.selectedEndTime
   };
-
+  //Si existe un evento en ese horario, no insertar
   if (this.checkTimeCollision(newEvent)) {
     Swal.fire({
       toast: true,
@@ -515,10 +726,11 @@ submitForm(): void {
     date: this.selectedDate,
     startTime: this.selectedStartTime,
     endTime: this.selectedEndTime,
-    color: this.typeColors[this.activityType as keyof typeof this.typeColors].backgroundColor
+    color: this.typeColors[this.activityType as keyof typeof this.typeColors].backgroundColor,
+    userId: this.currentUser
   };
 
-  /** CONFIRMACIÓN DEL USUARIO */
+  //Confirmacion del usuario
   Swal.fire({
     title: '¿Estás seguro de crear el evento?',
     text: `Evento: ${finalEvent.name}, Fecha: ${finalEvent.date}`,
@@ -527,11 +739,12 @@ submitForm(): void {
     confirmButtonText: 'Sí, crear',
     cancelButtonText: 'Cancelar'
   }).then((result) => {
+    //Crear evento y enviar a la base de datos
     if (result.isConfirmed) {
       this.apiService.addEvent(finalEvent).subscribe({
         next: (response) => {
           if (response?.id) {
-            finalEvent.id = response.id; 
+            finalEvent.id = response.id;
             this.events.push(finalEvent);
             this.calculateActivityPercentages();
 
@@ -543,10 +756,7 @@ submitForm(): void {
               showConfirmButton: false,
               timer: 3000
             });
-          } else {
-            console.error('No se recibió un ID válido en la respuesta:', response);
           }
-
           this.closeModal();
         },
         error: (error) => {
@@ -564,7 +774,7 @@ submitForm(): void {
   });
 }
 
-/**RESETEA LOS CAMPOS DEL FORMULARIO A SUS VALORES INICIALES */
+//Resetear campos del formulario al finalizar proceso
 resetForm(): void {
   this.eventName = ''; 
   this.activityType = '';
@@ -576,29 +786,34 @@ resetForm(): void {
   this.day = '';
 }
 
-/**GESTION PARA EL REDIMENCIONAMIENTO DE EVENTOS */
+//Redimencion de eventos
 startResize(event: MouseEvent, calendarEvent: CalendarEvent, type: 'top' | 'bottom') {
+  if (this.isViewingOtherUserEvents()) return;
   event.preventDefault(); 
   event.stopPropagation();
   
-  this.isResizing = true; /**MARCA QUE LA REDIMENCION ESTA ACTIVA */
-  this.resizingEvent = { ...calendarEvent }; /**COPIA DEL EVENTO QUE REDIMENCIONA, EVITA ALTERAR EL EVENTO ORIGINAL */
-  this.resizeStartY = event.clientY; /**GUARDA LA POSICION VERTICAL DEL MOUSE, QUE SE USA PARA CALCULAR EL TAMAÑO MAS ADELANTE */
-  this.resizeType = type; /**DEFINE LA PARTE DEL EVENTO QUE SE REDIMENCIONA */
-  this.resizeStartTime = type === 'top' ? calendarEvent.startTime : calendarEvent.endTime; /**GUARDA LA HORA CORRESPONDIENTE */
+  this.isResizing = true; //Marca que la redimencion esta activa
+  this.resizingEvent = { ...calendarEvent }; //Copia el evento que se redimenciona, evitando dañarlo
+  this.resizeStartY = event.clientY; //Guarda la posicion vertical del mouse
+  this.resizeType = type; //Define la parte del evento que se redimenciona
+  this.resizeStartTime = type === 'top' ? calendarEvent.startTime : calendarEvent.endTime; //Guarda las horas que corresponden
   
-  document.body.style.cursor = 'ns-resize'; /**CURSOR */
+  document.body.style.cursor = 'ns-resize'; //Cursor
 }
 
+//Ejecuta los movimientos del mouse
 @HostListener('document:mousemove', ['$event'])
 onMouseMove(event: MouseEvent) {
+  //Redimencionamiento de eventos
   if (this.isResizing && this.resizingEvent) {
+
+    //Calculo de movimientos del mouse
     event.preventDefault();
     
     const deltaY = event.clientY - this.resizeStartY;
     const quarterHourHeight = this.hourHeight / 4;
     const quarterHourDelta = Math.round(deltaY / quarterHourHeight); 
-    
+    //Convierte una hora en minutos totales
     const getMinutesFromTime = (timeString: string): number => {
       const [time, period] = timeString.split(' ');
       let [hours, minutes] = time.split(':').map(Number);
@@ -606,7 +821,7 @@ onMouseMove(event: MouseEvent) {
       else if (period === 'AM' && hours === 12) hours = 0;
       return hours * 60 + minutes;
     };
-    
+    //Convertir minutos totales a formato hh:mm AM/PM
     const formatTimeWithMinutes = (totalMinutes: number): string => {
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
@@ -614,14 +829,15 @@ onMouseMove(event: MouseEvent) {
       const displayHours = hours % 12 || 12;
       return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
     };
-    
+    //Obtener los minutos de inicio y fin del evento
     const currentStartMinutes = getMinutesFromTime(this.resizingEvent.startTime);
     const currentEndMinutes = getMinutesFromTime(this.resizingEvent.endTime);
     
+    //Calcular la nueva hora de inicio o fin del evento
     let newStartMinutes = currentStartMinutes;
     let newEndMinutes = currentEndMinutes;
     
-    // Calculate new times based on resize direction
+
     if (this.resizeType === 'top') {
       newStartMinutes = currentStartMinutes + (quarterHourDelta * 15);
       newStartMinutes = Math.max(
@@ -636,17 +852,17 @@ onMouseMove(event: MouseEvent) {
       );
     }
     
-    // Round to nearest 15 minutes
+    //Redondear a multiplos de 15 min
     newStartMinutes = Math.round(newStartMinutes / 15) * 15;
     newEndMinutes = Math.round(newEndMinutes / 15) * 15;
     
-    // Check for collisions with other events
+ 
     const hasCollision = this.checkResizeCollision({
       ...this.resizingEvent,
       startTime: formatTimeWithMinutes(newStartMinutes),
       endTime: formatTimeWithMinutes(newEndMinutes)
     });
-    
+    // Si no hay colision, actualizar el evento
     if (!hasCollision) {
       const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
       
@@ -659,6 +875,7 @@ onMouseMove(event: MouseEvent) {
         this.cdr.detectChanges();
       }
     }
+    //Creacion  de eventos con arrastre
   } else if (this.isDragCreating && this.dragStartCell) {
     const cell = this.findTimeCell(event);
     if (cell) {
@@ -671,11 +888,14 @@ onMouseMove(event: MouseEvent) {
   }
 }
 
-/**FINALIZACION DE ACCIONES DE REDIMENCIONAMIENTO/ARRASTRE DE EVENTOS */
+//Ejecucion al soltar el boton del mouse
 @HostListener('document:mouseup', ['$event'])
 onMouseUp(event: MouseEvent) {
+  //Finalizar redimencionamiento
   if (this.isResizing) {
+    //Buscar el evento redimencionado
     const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
+    //Confirmacion 
     if (eventIndex !== -1) {
       this.isResizing = false;
       document.body.style.cursor = 'default';
@@ -687,8 +907,9 @@ onMouseUp(event: MouseEvent) {
         confirmButtonText: 'Sí, modificar',
         cancelButtonText: 'Cancelar'
       }).then((result) => {
+        //Si el usuario confirma la modificacion, actualizar
         if (result.isConfirmed) {
-          this.apiService.updateEvent(this.events[eventIndex]).subscribe({
+          this.apiService.updateEventFromModal(this.events[eventIndex]).subscribe({
             next: response => {
               Swal.fire({
                 toast: true,
@@ -710,6 +931,7 @@ onMouseUp(event: MouseEvent) {
               });
             }
           });
+          //Si la cancela, el evento se restaura a su estado original
         } else {
           this.events[eventIndex] = { 
             ...this.resizingEvent 
@@ -721,13 +943,17 @@ onMouseUp(event: MouseEvent) {
         this.resizeType = null;
       });
     }
+    //Finalizacion de la creacion de un evento por arrastre
   } else if (this.isDragCreating && this.dragStartCell && this.dragEndCell) {
+    //Obtener fechas seleccionadas
     const weekDays = this.getWeekDays();
     const selectedDate = weekDays[this.dragStartCell.day].date;
     
+    //Calcular hora de inicio y fin del evento
     const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour) - 1;
     const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour);
     
+    //Formatear fecha y las horas
     this.selectedDate = selectedDate;
     this.day = this.formatDate(selectedDate);
     this.selectedStartTime = this.formatTimeString(startHour);
@@ -740,7 +966,7 @@ onMouseUp(event: MouseEvent) {
   }
 }
 
-/**FINALIZA EL PROCESO DE ARRASTRAR Y SOLTAR (INACTIVO) SELECCIONA LOS ELEMENTOS DE LAS CLASES EVENT-DRAGGING-VALID DROP DONDE SE PUEDE O NO SOLTAR EL EVENTO, LUEGO LAS ELIMINA REESTABLECIENDO LOS ESTILOS VISUALES */
+// INACTIVO: Esto realiza el proceso de arrastrar evento de dia y horas.
   private finalizeDragDrop() {
     const eventElements = document.querySelectorAll('.event-dragging, .valid-drop, .invalid-drop');
     eventElements.forEach(el => {
@@ -757,7 +983,7 @@ onMouseUp(event: MouseEvent) {
     this.cdr.detectChanges();
   }
 
-/**METODO AUXILIAR PARA FORMATEAR LA HORA */
+//Metodo auxiliar para formatear la hora
 private formatTimeString(hour: number): string {
   const adjustedHour = hour % 24;
   const isPM = adjustedHour >= 12;
@@ -765,9 +991,9 @@ private formatTimeString(hour: number): string {
   return `${displayHour.toString().padStart(2, '0')}:00 ${isPM ? 'PM' : 'AM'}`;
 }
 
-
  // Método para abrir el modal de edición
  openEditModal(event: CalendarEvent) {
+  if (this.isViewingOtherUserEvents()) return;
   this.currentEditingEvent = event;
   this.editEventName = event.name;
   this.editActivityType = event.type;
@@ -964,7 +1190,10 @@ updateEvent(): void {
   }
 }
 
+//Manejo preciso de clicks para la creacion de eventos por arrastre
 startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
+  if (this.isViewingOtherUserEvents()) return;
+
   event.preventDefault();
   
   // Solo proceder si es click izquierdo (botón 0)
@@ -1223,7 +1452,7 @@ private initiateDrag(event: MouseEvent, calendarEvent: CalendarEvent) {
   eventElement.classList.add('event-dragging');
 }
 
-/**CALCULA EL DÍA DE LA SEMANA EN EL QUE SE ENCUENTRA EL MOUSE */
+//Metodo para hayar el día en el que se posiciona el mouse
 findTargetDay(event: MouseEvent): WeekDay | null {
   const weekDays = this.getWeekDays();
   const calendarElement = document.querySelector('.calendar');
@@ -1237,7 +1466,7 @@ findTargetDay(event: MouseEvent): WeekDay | null {
   return dayIndex >= 0 && dayIndex < weekDays.length ? weekDays[dayIndex] : null;
 }
 
-/**ACTUALIZA LA FECHA DEL EVENTOESPECIFICADO CON LA NUEVA FECHA */
+//Actualizar fecha del evento especificado con la nueva fecha
 updateEventDate(event: CalendarEvent, targetDay: WeekDay) {
   const originalIndex = this.events.findIndex(e => e.id === event.id);
   if (originalIndex !== -1) {
@@ -1250,8 +1479,7 @@ updateEventDate(event: CalendarEvent, targetDay: WeekDay) {
   }
 }
 
-
-/**FILTRAR Y DEVOLVER TODOS LOS EVENTOS QUE CORRESPONDEN A UN DÍA ESPECIFICO */
+//Filtrar y devolver los eventos que corresponden a un dia en especifico
 getEventsForDay(weekDay: WeekDay): CalendarEvent[] {
   return this.events.filter(event => {
     const eventDate = new Date(event.date);
@@ -1261,7 +1489,7 @@ getEventsForDay(weekDay: WeekDay): CalendarEvent[] {
   });
 }
 
-/**VERIFICA SI EXISTE ALGUN EVENTO EN UN DIA ESPECIFICO A UNA HORA DETERMINADA */
+//Verifica si existe un evento en una hora especifica
 hasEventAtHour(weekDay: WeekDay, hour: number): CalendarEvent | null {
   const events = this.getEventsForDay(weekDay);
   return events.find(event => {
@@ -1271,14 +1499,26 @@ hasEventAtHour(weekDay: WeekDay, hour: number): CalendarEvent | null {
   }) || null;
 }
 
-/**CONVIERTE UN STRING DE HORA EN FORMATO DE 12 HORAS A FORMATO DE 24 HORAS, DEVOLVIENDO LA HORRA QUE CORRESPONDE EN FORMATO DE 24 HORAS */
+//Convierte un string de horas de 12 a 24
 private getHourFromTimeString(timeString: string): number {
   if (!timeString) return this.BASE_HOUR;
-  
+
   const [time, period] = timeString.split(' ');
-  let [hours] = time.split(':').map(Number);
   
- /**CONVERTIR A FORMATO DE 24 HORAS */
+  // Verifica si el periodo está presente (AM/PM)
+  if (!period || (period !== 'AM' && period !== 'PM')) {
+    console.error('Formato de hora incorrecto, falta AM/PM:', timeString);
+    return this.BASE_HOUR;
+  }
+
+  let [hours] = time.split(':').map(Number);
+
+  if (isNaN(hours)) {
+    console.error('Formato de hora incorrecto:', timeString);
+    return this.BASE_HOUR;
+  }
+
+  /** Convertir a formato de 24 horas */
   if (period === 'PM' && hours !== 12) {
     hours += 12;
   } else if (period === 'AM' && hours === 12) {
@@ -1296,19 +1536,28 @@ isEventInHour(event: CalendarEvent, hour: number): boolean {
   return hour === startHour + 1;
 }
 
+//Estilos del tipo de evento.
 getEventStyle(event: CalendarEvent): any {
-  const startHour = this.getHourFromTimeString(event.startTime);
-  const endHour = this.getHourFromTimeString(event.endTime);
+  // Llamar a normalizedEvent para la recarga de la pagina
+  const normalizedEvent = this.normalizeEventData(event);
+  
+  if (!normalizedEvent.startTime || !normalizedEvent.endTime) {
+    console.error('startTime or endTime not defined for event:', normalizedEvent);
+    return {};
+  }
+
+  const startHour = this.getHourFromTimeString(normalizedEvent.startTime);
+  const endHour = this.getHourFromTimeString(normalizedEvent.endTime);
   
   const [startMinutes, endMinutes] = [
-    parseInt(event.startTime.split(':')[1].split(' ')[0]),
-    parseInt(event.endTime.split(':')[1].split(' ')[0])
+    normalizedEvent.startTime.includes(':') ? parseInt(normalizedEvent.startTime.split(':')[1].split(' ')[0]) : 0,
+    normalizedEvent.endTime.includes(':') ? parseInt(normalizedEvent.endTime.split(':')[1].split(' ')[0]) : 0
   ];
 
   const minuteOffset = startMinutes / 60;
   const minuteDuration = ((endHour - startHour) * 60 + (endMinutes - startMinutes)) / 60;
 
-  const eventColor = this.typeColors[event.type];
+  const eventColor = this.typeColors[normalizedEvent.type];
 
   return {
     position: 'absolute',
@@ -1328,11 +1577,12 @@ getEventStyle(event: CalendarEvent): any {
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
-    // Agregamos los eventos del mouse
-    onmouseenter: () => this.onEventMouseEnter(event),
+    onmouseenter: () => this.onEventMouseEnter(normalizedEvent),
     onmouseleave: () => this.onEventMouseLeave()
   };
 }
+
+//Metodo para borrar el evento desde el modal de actualizacion.
 deleteEventFromModal(): void {
   if (this.currentEditingEvent) {
     // Llamamos al método deleteEvent existente
@@ -1356,7 +1606,7 @@ onEventMouseLeave(): void {
   document.removeEventListener('keyup', this.handleKeyPress);
 }
 
-// Método para manejar la tecla presionada
+// Método para manejar la tecla precionada
  handleKeyPress = (e: KeyboardEvent) => {
   if (e.key === 'Delete' && this.currentHoveredEvent) {
     this.deleteEvent(this.currentHoveredEvent);
@@ -1365,6 +1615,7 @@ onEventMouseLeave(): void {
 
 // Método para eliminar el evento
  deleteEvent(event: CalendarEvent): void {
+  if (this.isViewingOtherUserEvents()) return;
   Swal.fire({
     title: '¿Estás seguro de eliminar este evento?',
     text: `Evento: ${event.name}`,
@@ -1408,11 +1659,12 @@ onEventMouseLeave(): void {
   });
 }
 
-
+  //Metodo para formatear el rango de horas de un evento en el formato AM/PM
  formatEventTime(event: CalendarEvent): string {
     return `${event.startTime} - ${event.endTime}`;
   }
 
+  //Metodo para retornar un rango de fechas que representa la semana actual
   getWeekRange(): string {
     const startOfWeek = this.getStartOfWeek(this.currentDate);
     const endOfWeek = this.getEndOfWeek(this.currentDate);
@@ -1421,14 +1673,16 @@ onEventMouseLeave(): void {
     return `${startMonth} ${startOfWeek.getDate()} - ${endMonth} ${endOfWeek.getDate()}, ${this.currentYear}`;
   }
   
+  //Metodo para encontrar el lunes de la semana a la que pertenece la fecha dada (date)
   getStartOfWeek(date: Date): Date {
     const startOfWeek = new Date(date);
     const dayOfWeek = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Ajuste para que el lunes sea el primer día
+    const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
     startOfWeek.setDate(diff);
     return startOfWeek;
   }
   
+  //Metodo para encontrar el fin de una semana de una fecha dada (date)
   getEndOfWeek(date: Date): Date {
     const startOfWeek = this.getStartOfWeek(date);
     const endOfWeek = new Date(startOfWeek);
@@ -1436,6 +1690,7 @@ onEventMouseLeave(): void {
     return endOfWeek;
   }
 
+  //Metodo para cambiar de semana
   changeWeek(direction: number): void {
     // Si hay una semana seleccionada, usar esa fecha como punto de partida
     const referenceDate = this.selectedWeekStart || this.currentDate;
@@ -1463,7 +1718,7 @@ onEventMouseLeave(): void {
       const dayInCalendar = {
         day: currentDate.getDate(),
         isCurrentMonth: currentDate.getMonth() === this.currentDate.getMonth(),
-        isHoliday: false // Ajustar según sea necesario
+        isHoliday: false 
       };
       
       this.selectedWeekDays.push(dayInCalendar);
@@ -1472,6 +1727,7 @@ onEventMouseLeave(): void {
     this.cdr.detectChanges();
   }
   
+  //Metodo para obtener el numero de la semana
   getWeekNumber(date: Date): number {
     const startDate = new Date(date.getFullYear(), 0, 1);
     const days = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
@@ -1506,7 +1762,7 @@ getDayName(dayIndex: number): string {
   return daysOfWeek[dayIndex];
 }
 
-
+//Metodo para generar los horarios disponibles
 generateAvailableTimes(): void {
   const times: string[] = [];
   
@@ -1525,6 +1781,7 @@ generateAvailableTimes(): void {
   this.availableTimes = times;
 }
 
+ //Metodo para activar el click en un campo de entrada de fecha
 onDateClick(event: Event): void {
   const inputElement = event.target as HTMLInputElement;
   const selectedValue = inputElement.value;
@@ -1534,7 +1791,7 @@ onDateClick(event: Event): void {
 }
 
 
-// Métodos actualizados
+//Metodo para cambiar la fecha en un campo de entrada
 onDateChange(event: any): void {
   const selectedValue = event.target.value;
   const [year, month, day] = selectedValue.split('-').map(Number);
@@ -1542,16 +1799,19 @@ onDateChange(event: any): void {
   this.day = selectedValue;
 }
 
+//Metodo que se ejecuta cuando cambia la hora de inicio en un evento
 onStartTimeChange(value: string): void {
   this.selectedStartTime = value;
   this.time = value;
 }
 
+//Metodo que se ejecuta cuando cambia la hora de fin de un evento
 onEndTimeChange(value: string): void {
   this.selectedEndTime = value;
   this.endDay = value;
 }
 
+//Metodo para formatear la fecha en un objeto date en cadena AM/PM
 private formatDate(date: Date): string {
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -1559,6 +1819,7 @@ private formatDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+//Metodo para verificar las colisiones de tiempo
 private checkTimeCollision(newEvent: Partial<CalendarEvent>): boolean {
   const newStartTime = newEvent.startTime || '';
   const newEndTime = newEvent.endTime || '';
@@ -1590,8 +1851,9 @@ private checkTimeCollision(newEvent: Partial<CalendarEvent>): boolean {
   });
 }
 
+//Metodo para verificar las colisiones al redimencionar eventos
 private checkResizeCollision(proposedEvent: CalendarEvent): boolean {
-  // Get all events for the same day except the one being resized
+
   const eventsOnSameDay = this.events.filter(event => 
     event.id !== proposedEvent.id && 
     new Date(event.date).toDateString() === new Date(proposedEvent.date).toDateString()
@@ -1608,12 +1870,10 @@ private checkResizeCollision(proposedEvent: CalendarEvent): boolean {
   const proposedStart = getMinutesFromTime(proposedEvent.startTime);
   const proposedEnd = getMinutesFromTime(proposedEvent.endTime);
 
-  // Check for overlap with each existing event
   return eventsOnSameDay.some(event => {
     const eventStart = getMinutesFromTime(event.startTime);
     const eventEnd = getMinutesFromTime(event.endTime);
 
-    // Check if the proposed event overlaps with this event
     return (proposedStart < eventEnd && proposedEnd > eventStart);
   });
 }
@@ -1632,6 +1892,7 @@ private timeStringToHour(timeString: string): number {
   return hours;
 }
 
+//Metodo para calcular la duracion de un evento
 private calculateEventDuration(event: CalendarEvent): number {
   const startMinutes = this.timeStringToMinutes(event.startTime);
   const endMinutes = this.timeStringToMinutes(event.endTime);
@@ -1679,6 +1940,7 @@ private calculateActivityPercentages(): void {
   this.cdr.detectChanges();
 }
 
+//Manejo de clicks para redimencionamiento
 @HostListener('mousedown', ['$event'])
 onCalendarMouseDown(event: MouseEvent) {
   if (event.button !== 0 || this.isModalOpen) return; // Solo permitir click izquierdo
@@ -1716,6 +1978,7 @@ onCalendarMouseDown(event: MouseEvent) {
   }
 }
 
+//Movimiento del mouse
 @HostListener('mousemove', ['$event'])
 onCalendarMouseMove(event: MouseEvent) {
   if (event.button !== 0 || this.isModalOpen) return; // Solo permitir si el botón izquierdo está presionado
@@ -1763,8 +2026,7 @@ onCalendarMouseUp(event: MouseEvent) {
   this.cleanupDragCreate();
 }
 
-
-
+//Formatear los minutos de un string
 private formatTimeStringWithMinutes(hour: number, minutes: number): string {
   const adjustedHour = hour % 24;
   const isPM = adjustedHour >= 12;
@@ -1772,6 +2034,7 @@ private formatTimeStringWithMinutes(hour: number, minutes: number): string {
   return `${displayHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
 }
 
+//Metodo para encontrar la celda de tiempo en la que se realiza el redimencionamiento
 private findTimeCell(event: MouseEvent): { day: number, hour: number } | null {
   const calendarGrid = document.querySelector('.calendar');
   if (!calendarGrid) return null;
@@ -1836,7 +2099,10 @@ private findTimeCell(event: MouseEvent): { day: number, hour: number } | null {
 }
 
 
+//Metodo para crear el evento temporal
 private createTemporaryEvent(event: MouseEvent) {
+  if (this.isViewingOtherUserEvents()) return;
+
   if (!this.dragStartCell) return;
 
   this.temporaryEventElement = document.createElement('div');
@@ -1845,6 +2111,7 @@ private createTemporaryEvent(event: MouseEvent) {
   this.updateTemporaryEvent();
 }
 
+//Metodo para actualizar el evento temporal
 private updateTemporaryEvent() {
   if (!this.temporaryEventElement || !this.dragStartCell || !this.dragEndCell) return;
 
@@ -1930,6 +2197,7 @@ private updateTemporaryEvent() {
   });
 }
 
+//Metodo auxiliar para el tiempo
 private timeStringToMinutes(timeString: string): number {
   const [time, period] = timeString.split(' ');
   let [hours, minutes] = time.split(':').map(Number);
@@ -1943,6 +2211,7 @@ private timeStringToMinutes(timeString: string): number {
   return hours * 60 + minutes;
 }
 
+//Metodo para limpiar el evento temporal cuando se cree o cancele
 private cleanupDragCreate() {
   if (this.temporaryEventElement) {
     this.temporaryEventElement.remove();
@@ -1952,6 +2221,7 @@ private cleanupDragCreate() {
   this.dragStartCell = null;
   this.dragEndCell = null;
 }
+//Metodo para verificar las fechas.
 private isDateBeforeToday(date: Date): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
