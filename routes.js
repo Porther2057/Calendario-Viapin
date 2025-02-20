@@ -85,6 +85,7 @@ router.post('/events', (req, res) => {
   });
 });
 
+//Crear evento
 router.put('/events/modal/:id', (req, res) => {
   const id = parseInt(req.params.id);
 
@@ -124,6 +125,7 @@ router.put('/events/modal/:id', (req, res) => {
   );
 });
 
+//Borrar Evento
 router.delete('/events/:id', (req, res) => {
   const id = parseInt(req.params.id);
 
@@ -171,6 +173,7 @@ router.get('/users', async (req, res) => {
   }
 });
 
+//Obtener rol
 router.get('/users/:username/role', async (req, res) => {
   try {
     const { username } = req.params; 
