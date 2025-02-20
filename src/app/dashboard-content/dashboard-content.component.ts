@@ -119,7 +119,7 @@ export class DashboardContentComponent implements OnInit {
     'administrativa': { backgroundColor: '#D8EDD7', borderColor: '#0AD600' },
     'operativa': { backgroundColor: '#CADCF4', borderColor: '#086CF0' },
     'personal': { backgroundColor: '#E4E4E4', borderColor: '#747474' },
-    'perso': { backgroundColor: '#E9F5FA', borderColor: '#000000' } 
+    'perso': { backgroundColor: '#ffffff', borderColor: '#000000' } 
   };
   
 //Variables del modal de crear evento
@@ -2184,7 +2184,7 @@ private updateTemporaryEvent() {
     width: `${Math.floor(dayWidth)}px`,
     height: `${Math.max(0, finalHeight)}px`,
     backgroundColor: this.typeColors['perso'].backgroundColor,
-    borderLeft: `8px solid ${this.typeColors['perso'].borderColor}`,
+    border: `8px solid ${this.typeColors['perso'].borderColor}`,
     margin: '0',
     padding: '4px',
     pointerEvents: 'none',
