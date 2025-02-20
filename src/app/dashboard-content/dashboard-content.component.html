@@ -162,15 +162,15 @@
     [ngModel]="selectedUser" 
     (ngModelChange)="onUserSelect($event)"
   >
-    <option [value]="null">Seleccione un usuario</option>
-    <option *ngFor="let user of usuarios" [value]="user.usuario">{{ user.usuario }}</option>
+    <option [value]="null" disabled selected>Seleccione un usuario</option>
+    <option *ngFor="let user of usuarios" [value]="user.usuario">{{ user.nombre || user.usuario }}</option>
   </select>
 
   <!-- Mensaje informativo para usuarios sin permisos -->
   <small 
     *ngIf="currentUserRole !== 'ADMINISTRATIVO'" 
     class="text-muted mt-2 d-block">
-    Solo usuarios administrativos pueden ver eventos de otros usuarios
+    ¡Aqui va el contenido extra!
   </small>
 </div>
 
