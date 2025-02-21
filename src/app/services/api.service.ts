@@ -10,7 +10,6 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
-  // Método genérico para manejar errores
   private handleError(error: HttpErrorResponse) {
     let errorMessage = '';
     

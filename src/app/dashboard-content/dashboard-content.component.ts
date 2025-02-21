@@ -42,7 +42,7 @@ interface ActivityStats {
 export class DashboardContentComponent implements OnInit {
 
   //IMPORTANTE, AQUI ESTAN LAS VARIABLES GLOBALES PARA EL USUARIO 
-  currentUser: string = 'porther'; 
+  currentUser: string = 'porther';
   currentUserRole: string = '';
   
   // Propiedad para almacenar la lista de usuarios
@@ -216,19 +216,19 @@ export class DashboardContentComponent implements OnInit {
             toast: true,
             position: 'top',
             icon: 'info',
-            title: 'No hay eventos registrados para este usuario',
+            title: 'No hay actividades registradas para este usuario',
             showConfirmButton: false,
             timer: 3000
           });
         }
       },
       error: (error) => {
-        console.error('Error al cargar eventos:', error);
+        console.error('Error al cargar actividades:', error);
         Swal.fire({
           toast: true,
           position: 'top',
           icon: 'error',
-          title: 'Error al cargar los eventos del usuario',
+          title: 'Error al cargar las actividades del usuario',
           showConfirmButton: false,
           timer: 3000
         });
@@ -245,7 +245,7 @@ loadUserEvents(): void {
   const userToLoad = this.selectedUser || this.currentUser;
   
   Swal.fire({
-    title: 'Cargando eventos...',
+    title: 'Cargando actividades...',
     allowOutsideClick: false,
     didOpen: () => {
       Swal.showLoading();
@@ -275,7 +275,7 @@ loadUserEvents(): void {
         toast: true,
         position: 'top',
         icon: 'error',
-        title: 'Error al cargar los eventos',
+        title: 'Error al cargar las actividades',
         showConfirmButton: false,
         timer: 3000
       });
@@ -710,8 +710,8 @@ submitForm(): void {
       toast: true,
       position: 'top',
       icon: 'error',
-      title: '¡Ya existe un evento en ese horario!',
-      text: 'Seleccione un horario libre que no coincida con otro evento.',
+      title: '¡Ya existe una actividad en ese horario!',
+      text: 'Seleccione un horario libre que no coincida con otra actividad.',
       showConfirmButton: false,
       timer: 3000,
       timerProgressBar: true
@@ -732,8 +732,8 @@ submitForm(): void {
 
   //Confirmacion del usuario
   Swal.fire({
-    title: '¿Estás seguro de crear el evento?',
-    text: `Evento: ${finalEvent.name}, Fecha: ${finalEvent.date}`,
+    title: '¿Estás seguro de crear la actividad?',
+    text: `Nombre de actividad: ${finalEvent.name}, Fecha: ${finalEvent.date}`,
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Sí, crear',
@@ -752,7 +752,7 @@ submitForm(): void {
               toast: true,
               position: 'top',
               icon: 'success',
-              title: 'Evento registrado.',
+              title: 'Actividad registrada.',
               showConfirmButton: false,
               timer: 3000
             });
@@ -760,16 +760,16 @@ submitForm(): void {
           this.closeModal();
         },
         error: (error) => {
-          console.error('Error al guardar el evento:', error);
+          console.error('Error al guardar actividad:', error);
           Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'No se pudo guardar el evento'
+            text: 'No se pudo guardar la actividad'
           });
         }
       });
     } else {
-      console.log('Creación de evento cancelada');
+      console.log('Creación de actividad cancelada');
     }
   });
 }
@@ -901,7 +901,7 @@ onMouseUp(event: MouseEvent) {
       document.body.style.cursor = 'default';
       Swal.fire({
         title: '¿Estás seguro?',
-        text: '¿Deseas modificar el horario del evento?',
+        text: '¿Deseas modificar el horario de esta actividad?',
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Sí, modificar',
@@ -915,7 +915,7 @@ onMouseUp(event: MouseEvent) {
                 toast: true,
                 position: 'top',
                 icon: 'success',
-                title: 'Evento actualizado correctamente',
+                title: 'Actividad actualizada correctamente',
                 showConfirmButton: false,
                 timer: 3000
               });
@@ -927,7 +927,7 @@ onMouseUp(event: MouseEvent) {
               Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: 'No se pudo actualizar el evento',
+                text: 'No se pudo actualizar la actividad',
               });
             }
           });
@@ -1135,7 +1135,7 @@ updateEvent(): void {
         toast: true,
         position: 'top',
         icon: 'error',
-        title: '¡Ya existe un evento en ese horario!',
+        title: '¡Ya existe una actividad en ese horario!',
         text: 'Por favor, seleccione un horario disponible.',
         showConfirmButton: false,
         timer: 3000,
@@ -1146,8 +1146,8 @@ updateEvent(): void {
 
     // Confirmación antes de actualizar
     Swal.fire({
-      title: '¿Estás seguro de modificar el evento?',
-      text: `Evento: ${updatedEvent.name}`,
+      title: '¿Estás seguro de modificar la actividad?',
+      text: `Actividad: ${updatedEvent.name}`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Sí, modificar',
@@ -1165,7 +1165,7 @@ updateEvent(): void {
                 toast: true,
                 position: 'top',
                 icon: 'success',
-                title: 'Evento actualizado correctamente',
+                title: 'Actividad actualizada correctamente',
                 showConfirmButton: false,
                 timer: 3000
               });
@@ -1176,11 +1176,11 @@ updateEvent(): void {
             }
           },
           error: (error) => {
-            console.error('Error al actualizar el evento:', error);
+            console.error('Error al actualizar la actividad:', error);
             Swal.fire({
               icon: 'error',
               title: 'Error',
-              text: 'No se pudo actualizar el evento. Por favor, intente nuevamente.',
+              text: 'No se pudo actualizar la actividad. Por favor, intente nuevamente.',
               showConfirmButton: true
             });
           }
@@ -1252,7 +1252,7 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
 
     // Opciones del menú
     const options = [
-      { text: 'Eliminar evento', action: () => this.deleteEvent(calendarEvent) },
+      { text: 'Eliminar actividad', action: () => this.deleteEvent(calendarEvent) },
       { text: 'Cambiar tipo', subOptions: [
         { text: 'Estratégica', action: () => this.changeEventType(calendarEvent, 'estrategica') },
         { text: 'Administrativa', action: () => this.changeEventType(calendarEvent, 'administrativa') },
@@ -1374,11 +1374,11 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
   }
 }
 
-// Nuevo método para cambiar el tipo de evento
+// Método para cambiar el tipo de evento
 changeEventType(event: CalendarEvent, newType: string): void {
   Swal.fire({
-    title: '¿Cambiar tipo de evento?',
-    text: `¿Deseas cambiar el tipo de evento a ${newType}?`,
+    title: '¿Cambiar tipo de actividad?',
+    text: `¿Deseas cambiar el tipo de actividad a ${newType}?`,
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Sí, cambiar',
@@ -1401,7 +1401,7 @@ changeEventType(event: CalendarEvent, newType: string): void {
               toast: true,
               position: 'top',
               icon: 'success',
-              title: 'Tipo de evento actualizado',
+              title: 'Tipo de actividad actualizada',
               showConfirmButton: false,
               timer: 3000
             });
@@ -1411,11 +1411,11 @@ changeEventType(event: CalendarEvent, newType: string): void {
           }
         },
         error: (error) => {
-          console.error('Error al actualizar el tipo de evento:', error);
+          console.error('Error al actualizar el tipo de actividad:', error);
           Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'No se pudo actualizar el tipo de evento',
+            text: 'No se pudo actualizar el tipo de actividad',
             showConfirmButton: true
           });
         }
@@ -1424,7 +1424,7 @@ changeEventType(event: CalendarEvent, newType: string): void {
   });
 }
 
-// Nuevo método para iniciar el arrastre
+// Método para iniciar el arrastre
 private initiateDrag(event: MouseEvent, calendarEvent: CalendarEvent) {
   this.isDragging = true;
   this.draggedEvent = { ...calendarEvent };
@@ -1617,8 +1617,8 @@ onEventMouseLeave(): void {
  deleteEvent(event: CalendarEvent): void {
   if (this.isViewingOtherUserEvents()) return;
   Swal.fire({
-    title: '¿Estás seguro de eliminar este evento?',
-    text: `Evento: ${event.name}`,
+    title: '¿Estás seguro de eliminar esta actividad?',
+    text: `Actividad: ${event.name}`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonText: 'Sí, eliminar',
@@ -1637,7 +1637,7 @@ onEventMouseLeave(): void {
             toast: true,
             position: 'top',
             icon: 'success',
-            title: 'Evento eliminado correctamente',
+            title: 'Actividad eliminada con éxito',
             showConfirmButton: false,
             timer: 3000
           });
@@ -1646,11 +1646,11 @@ onEventMouseLeave(): void {
           this.cdr.detectChanges();
         },
         error: (error) => {
-          console.error('Error al eliminar el evento:', error);
+          console.error('Error al eliminar la actividad:', error);
           Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'No se pudo eliminar el evento. Por favor, intente nuevamente.',
+            text: 'No se pudo eliminar la actividad. Por favor, intente nuevamente.',
             showConfirmButton: true
           });
         }
@@ -2184,7 +2184,7 @@ private updateTemporaryEvent() {
     width: `${Math.floor(dayWidth)}px`,
     height: `${Math.max(0, finalHeight)}px`,
     backgroundColor: this.typeColors['perso'].backgroundColor,
-    border: `8px solid ${this.typeColors['perso'].borderColor}`,
+    borderLeft: `8px solid ${this.typeColors['perso'].borderColor}`,
     margin: '0',
     padding: '4px',
     pointerEvents: 'none',
