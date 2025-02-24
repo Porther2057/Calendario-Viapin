@@ -211,7 +211,6 @@ body {
     color: #898f98;
     background-color: #ffffff;
   }
-
   /* Estilo para las opciones al pasar el mouse sobre ellas */
   #usuarios option:hover {
     background-color: #f0f0f0;
@@ -404,9 +403,7 @@ body {
     flex-direction: column;  /* Asegura que los elementos se apilen verticalmente */
     align-items: stretch;  /* Asegura que los elementos ocupen todo el ancho disponible */
     height:auto;
-    overflow: hidden;
     border-radius: 8px;
-    margin-top: 10px;
     grid-area: calendar;
   }
 

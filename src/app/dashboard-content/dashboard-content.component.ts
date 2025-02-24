@@ -42,7 +42,7 @@ interface ActivityStats {
 export class DashboardContentComponent implements OnInit {
 
   //IMPORTANTE, AQUI ESTAN LAS VARIABLES GLOBALES PARA EL USUARIO 
-  currentUser: string = 'porther';
+  currentUser: string = 'user_test';
   currentUserRole: string = '';
   
   // Propiedad para almacenar la lista de usuarios
@@ -1249,20 +1249,39 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
     contextMenu.style.padding = '8px 0';
     contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
     contextMenu.style.zIndex = '1000';
+    
+    // Añadir estilos para animaciones
+    contextMenu.style.opacity = '0';
+    contextMenu.style.transform = 'scale(0.95)';
+    contextMenu.style.transition = 'opacity 0.15s ease-out, transform 0.15s ease-out';
+
+    // Definir iconos SVG
+    const deleteIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+    
+    const changeTypeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 12a9 9 0 0 0 15 6.7L21 16"></path><path d="M21 16v6h-6"></path></svg>`;
+    
+    // Actualizar los colores
+    const estrategicaIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#EF0A06BF" stroke="#d8c0c0"/></svg>`;
+    
+    const administrativaIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#0AD600BF" stroke="#c0d8bf"/></svg>`;
+    
+    const operativaIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#086CF0BF" stroke="#b1c3db"/></svg>`;
+    
+    const personalIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#747474BF" stroke="#cdcdcd"/></svg>`;
 
     // Opciones del menú
     const options = [
-      { text: 'Eliminar actividad', action: () => this.deleteEvent(calendarEvent) },
-      { text: 'Cambiar tipo', subOptions: [
-        { text: 'Estratégica', action: () => this.changeEventType(calendarEvent, 'estrategica') },
-        { text: 'Administrativa', action: () => this.changeEventType(calendarEvent, 'administrativa') },
-        { text: 'Operativa', action: () => this.changeEventType(calendarEvent, 'operativa') },
-        { text: 'Personal', action: () => this.changeEventType(calendarEvent, 'personal') }
+      { text: 'Eliminar actividad', icon: deleteIcon, action: () => this.deleteEvent(calendarEvent) },
+      { text: 'Cambiar tipo', icon: changeTypeIcon, subOptions: [
+        { text: 'Estratégica', icon: estrategicaIcon, action: () => this.changeEventType(calendarEvent, 'estrategica') },
+        { text: 'Administrativa', icon: administrativaIcon, action: () => this.changeEventType(calendarEvent, 'administrativa') },
+        { text: 'Operativa', icon: operativaIcon, action: () => this.changeEventType(calendarEvent, 'operativa') },
+        { text: 'Personal', icon: personalIcon, action: () => this.changeEventType(calendarEvent, 'personal') }
       ]}
     ];
 
-    // Crear las opciones del menú
-    options.forEach(option => {
+    // Crear las opciones del menú con animación escalonada
+    options.forEach((option, index) => {
       const item = document.createElement('div');
       item.className = 'context-menu-item';
       item.style.padding = '8px 16px';
@@ -1271,16 +1290,36 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
       item.style.display = 'flex';
       item.style.alignItems = 'center';
       item.style.justifyContent = 'space-between';
+      item.style.opacity = '0';
+      item.style.transform = 'translateY(8px)';
+      item.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out, background-color 0.15s ease-in-out';
+      item.style.transitionDelay = `${0.03 * index}s`;
+      
+      const leftContent = document.createElement('div');
+      leftContent.style.display = 'flex';
+      leftContent.style.alignItems = 'center';
+      
+      if (option.icon) {
+        const iconSpan = document.createElement('span');
+        iconSpan.innerHTML = option.icon;
+        iconSpan.style.marginRight = '8px';
+        iconSpan.style.display = 'flex';
+        iconSpan.style.alignItems = 'center';
+        leftContent.appendChild(iconSpan);
+      }
       
       const text = document.createElement('span');
       text.textContent = option.text;
-      item.appendChild(text);
+      leftContent.appendChild(text);
+      
+      item.appendChild(leftContent);
 
       if (option.subOptions) {
         const arrow = document.createElement('span');
-        arrow.textContent = '►';
+        arrow.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
         arrow.style.marginLeft = '8px';
-        arrow.style.fontSize = '10px';
+        arrow.style.display = 'flex';
+        arrow.style.alignItems = 'center';
         item.appendChild(arrow);
       }
 
@@ -1304,13 +1343,36 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
           subMenu.style.borderRadius = '4px';
           subMenu.style.padding = '8px 0';
           subMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+          
+          // Animación para el submenú
+          subMenu.style.opacity = '0';
+          subMenu.style.transform = 'translateX(-10px)';
+          subMenu.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
 
-          option.subOptions.forEach(subOption => {
+          option.subOptions.forEach((subOption, subIndex) => {
             const subItem = document.createElement('div');
             subItem.className = 'context-menu-item';
-            subItem.textContent = subOption.text;
             subItem.style.padding = '8px 16px';
             subItem.style.cursor = 'pointer';
+            subItem.style.display = 'flex';
+            subItem.style.alignItems = 'center';
+            subItem.style.opacity = '0';
+            subItem.style.transform = 'translateY(8px)';
+            subItem.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out, background-color 0.15s ease-in-out';
+            subItem.style.transitionDelay = `${0.03 * subIndex}s`;
+            
+            if (subOption.icon) {
+              const iconSpan = document.createElement('span');
+              iconSpan.innerHTML = subOption.icon;
+              iconSpan.style.marginRight = '8px';
+              iconSpan.style.display = 'flex';
+              iconSpan.style.alignItems = 'center';
+              subItem.appendChild(iconSpan);
+            }
+            
+            const text = document.createElement('span');
+            text.textContent = subOption.text;
+            subItem.appendChild(text);
             
             subItem.addEventListener('mouseenter', () => {
               subItem.style.backgroundColor = '#f0f0f0';
@@ -1322,6 +1384,8 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
             
             subItem.addEventListener('click', (e) => {
               e.stopPropagation();
+              
+              // Ejecutar acción inmediatamente sin efecto ripple
               subOption.action();
               document.body.removeChild(contextMenu);
             });
@@ -1329,7 +1393,19 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
             subMenu.appendChild(subItem);
           });
           
-          item.appendChild(subMenu);
+          contextMenu.appendChild(subMenu);
+          
+          // Animar la entrada del submenú
+          setTimeout(() => {
+            subMenu.style.opacity = '1';
+            subMenu.style.transform = 'translateX(0)';
+            
+            // Animar la entrada de cada elemento del submenú
+            Array.from(subMenu.children).forEach((child) => {
+              (child as HTMLElement).style.opacity = '1';
+              (child as HTMLElement).style.transform = 'translateY(0)';
+            });
+          }, 50);
         }
       });
 
@@ -1339,6 +1415,7 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
 
       if (!option.subOptions) {
         item.addEventListener('click', () => {
+          // Ejecutar acción inmediatamente sin efecto ripple
           option.action();
           document.body.removeChild(contextMenu);
         });
@@ -1349,12 +1426,43 @@ startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
 
     // Agregar el menú al documento
     document.body.appendChild(contextMenu);
+    
+    // Trigger layout reflow y aplicar animación
+    void contextMenu.offsetWidth;
+    
+    // Aplicar animación de entrada del menú
+    contextMenu.style.opacity = '1';
+    contextMenu.style.transform = 'scale(1)';
+    
+    // Animar la entrada de cada elemento del menú
+    setTimeout(() => {
+      Array.from(contextMenu.children).forEach((child) => {
+        (child as HTMLElement).style.opacity = '1';
+        (child as HTMLElement).style.transform = 'translateY(0)';
+      });
+    }, 50);
 
     // Función para cerrar el menú
     const closeContextMenu = (e: MouseEvent) => {
       if (!contextMenu.contains(e.target as Node)) {
         if (document.body.contains(contextMenu)) {
-          document.body.removeChild(contextMenu);
+          // Animar la salida del menú
+          contextMenu.style.opacity = '0';
+          contextMenu.style.transform = 'scale(0.95)';
+          
+          // Animar la salida de cada elemento del menú
+          Array.from(contextMenu.children).forEach((child, index) => {
+            (child as HTMLElement).style.opacity = '0';
+            (child as HTMLElement).style.transform = 'translateY(8px)';
+            (child as HTMLElement).style.transitionDelay = `${0.02 * index}s`;
+          });
+          
+          // Remover el menú después de la animación
+          setTimeout(() => {
+            if (document.body.contains(contextMenu)) {
+              document.body.removeChild(contextMenu);
+            }
+          }, 200);
         }
         document.removeEventListener('mousedown', closeContextMenu);
       }
