@@ -113,6 +113,9 @@ export class DashboardContentComponent implements OnInit {
   currentHoveredEvent: CalendarEvent | null = null;
   events: CalendarEvent[] = [];
 
+  showMonthYearSelector: boolean = false;
+  currentMonthValue: string = ''; // Para el valor del input type="month"
+
 //Asignación automatica para los estilos del evento según su tipo
   private typeColors: { [key: string]: { backgroundColor: string, borderColor: string } } = {
     'estrategica': { backgroundColor: '#EFD9D9', borderColor: '#EF0A06' },
@@ -155,6 +158,7 @@ export class DashboardContentComponent implements OnInit {
     next: (resp) => console.log('Conexion ok', resp),
     error: (err) => console.error('Error', err)
   });
+  this.updateCurrentMonthValue(),
   this.updateCalendar();
   this.generateAvailableTimes();
   // Primero verificamos si el usuario actual existe en la base de datos
@@ -178,6 +182,61 @@ export class DashboardContentComponent implements OnInit {
       console.error('Error de sesión:', err);
     }
   });
+}
+
+// Método para mostrar/ocultar el selector del calendario mensual
+toggleMonthYearSelector(): void {
+  this.showMonthYearSelector = !this.showMonthYearSelector;
+  if (this.showMonthYearSelector) {
+    this.updateCurrentMonthValue();
+  }
+}
+
+// Método para formatear la fecha actual en formato YYYY-MM para el input
+private updateCurrentMonthValue(): void {
+  const year = this.currentDate.getFullYear();
+  const month = (this.currentDate.getMonth() + 1).toString().padStart(2, '0');
+  this.currentMonthValue = `${year}-${month}`;
+}
+
+// Método para manejar el cambio en el input de mes
+onMonthYearChange(event: Event): void {
+  const inputElement = event.target as HTMLInputElement;
+  const [year, month] = inputElement.value.split('-').map(Number);
+  
+  if (!isNaN(year) && !isNaN(month)) {
+    // Actualizar la fecha (month - 1 porque los meses en JavaScript van de 0 a 11)
+    this.currentDate.setFullYear(year);
+    this.currentDate.setMonth(month - 1);
+    
+    // Actualizar las propiedades del componente
+    this.currentMonthName = this.getMonthName(month - 1);
+    this.currentYear = year;
+    
+    // Actualizar el calendario
+    this.updateCalendar();
+    this.cdr.detectChanges();
+    
+    // Opcionalmente, cerrar el selector después de seleccionar
+    // this.showMonthYearSelector = false;
+  }
+}
+
+// Metodo para cerrar el selector del calendario mensual
+@HostListener('document:click', ['$event'])
+onDocumentClick(event: MouseEvent): void {
+  const titleElement = document.querySelector('.title-container h2');
+  const selectorElement = document.querySelector('.month-year-selector');
+  
+  if (titleElement && selectorElement) {
+    const clickedInTitle = titleElement.contains(event.target as Node);
+    const clickedInSelector = selectorElement.contains(event.target as Node);
+    
+    if (!clickedInTitle && !clickedInSelector && this.showMonthYearSelector) {
+      this.showMonthYearSelector = false;
+      this.cdr.detectChanges();
+    }
+  }
 }
  // Método para manejar la selección de usuario
  onUserSelect(userId: string): void {
@@ -321,18 +380,32 @@ loadUserRole(): void {
 
 //Metodo para convertir los horarios (AM-PM/PM-AM)
 private convertTimeFormat(time: string): string {
-  if (!time) return '';
-  
-  // Si ya está en formato AM/PM, retornarlo
-  if (time.includes('AM') || time.includes('PM')) return time;
-  
-  // Convertir la hora
-  const [hours, minutes] = time.split(':').map(Number);
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const displayHours = hours % 12 || 12;
-  
-  // Usar padStart para asegurar que tanto horas como minutos tengan dos dígitos
-  return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+  if (!time || typeof time !== 'string') return '';
+
+  // Si ya está en formato 24 horas con segundos (HH:mm:ss), eliminar los segundos
+  if (/^\d{2}:\d{2}:\d{2}$/.test(time)) return time.substring(0, 5);
+
+  // Si ya está en formato 24 horas sin segundos (HH:mm), devolverlo tal cual
+  if (/^\d{2}:\d{2}$/.test(time)) return time;
+
+  // Verificar que tenga AM/PM antes de convertir
+  if (!time.includes('AM') && !time.includes('PM')) return time;
+
+  // Convertir de AM/PM a 24 horas
+  const [timeStr, period] = time.split(' ');
+  if (!timeStr) return '';
+
+  let [hours, minutes] = timeStr.split(':').map(Number);
+
+  if (isNaN(hours) || isNaN(minutes)) return ''; // Evita valores inválidos
+
+  if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
 // Método para obtener los usuarios
@@ -353,6 +426,17 @@ loadUsers(): void {
       });
     }
   });
+}
+
+//Obtener minutos desde medianoche
+private getMinutesFromMidnight(timeString: string): number {
+  // Comprobar si esta en formato am/pm y convertirlo en caso de ser necesario
+  if (timeString.includes('AM') || timeString.includes('PM')) {
+    timeString = this.convertTimeFormat(timeString);
+  }
+  
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + minutes;
 }
 
 // Agregar esta función para verificar si estamos viendo eventos de otro usuario
@@ -503,121 +587,145 @@ isDayInSelectedWeek(day: { day: number, isCurrentMonth: boolean, isHoliday: bool
     }
   }
 
-  //Metodo para los diás festivos
-  getHolidaysForMonth(year: number, month: number): number[] {
-    const fixedHolidays = [
-      { month: 0, day: 1 }, // Año Nuevo
-      { month: 4, day: 1 }, // Día del Trabajo
-      { month: 6, day: 20 }, // Día de la Independencia
-      { month: 7, day: 7 }, // Batalla de Boyacá
-      { month: 11, day: 8 }, // Inmaculada Concepción
-      { month: 11, day: 25 } // Navidad
-    ];
+// Método para los días festivos
+getHolidaysForMonth(year: number, month: number): number[] {
+  // Festivos fijos que nunca cambian de fecha
+  const fixedHolidays = [
+    { month: 0, day: 1 },   // Año Nuevo (1 de enero)
+    { month: 4, day: 1 },   // Día del Trabajo (1 de mayo)
+    { month: 6, day: 20 },  // Día de la Independencia (20 de julio)
+    { month: 7, day: 7 },   // Batalla de Boyacá (7 de agosto)
+    { month: 11, day: 8 },  // Inmaculada Concepción (8 de diciembre)
+    { month: 11, day: 25 }  // Navidad (25 de diciembre)
+  ];
+
+  // Calcular festivos móviles para el año específico
+  const mobileHolidays = this.calculateMobileHolidays(year);
+
+  // Obtener todos los domingos del mes
+  const sundays = this.getAllSundaysInMonth(year, month);
   
-    const mobileHolidays = this.calculateMobileHolidays(year);
+  // Combinar festivos móviles, fijos y domingos
+  return [
+    ...fixedHolidays.filter(h => h.month === month).map(h => h.day),
+    ...mobileHolidays.filter(h => h.month === month).map(h => h.day),
+    ...sundays
+  ];
+}
+
+// Método para obtener todos los domingos del mes
+getAllSundaysInMonth(year: number, month: number): number[] {
+  const sundays: number[] = [];
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
   
-  //Combinar festivos mobiles y fijos
-    return [
-      ...fixedHolidays.filter(h => h.month === month).map(h => h.day),
-      ...mobileHolidays.filter(h => h.month === month).map(h => h.day)
-    ];
-  }
-  
-  //fFestivos mobiles
-  calculateMobileHolidays(year: number): { month: number, day: number }[] {
-    const holidays: { month: number, day: number }[] = [];
-  
-    //Domingo de pascua
-    const easter = this.calculateEasterSunday(year);
-  
-   //Jueves y viernes santos
-    const holyThursday = new Date(easter);
-    holyThursday.setDate(easter.getDate() - 3);
-    holidays.push({ month: holyThursday.getMonth(), day: holyThursday.getDate() });
-  
-    const goodFriday = new Date(easter);
-    goodFriday.setDate(easter.getDate() - 2);
-    holidays.push({ month: goodFriday.getMonth(), day: goodFriday.getDate() });
-  
-    //Corpus Cristi
-    const corpusChristi = new Date(easter);
-    corpusChristi.setDate(easter.getDate() + 60);
-    holidays.push({ month: corpusChristi.getMonth(), day: corpusChristi.getDate() });
-  
-   //Sagrado corazón de Jesús
-    const sacredHeart = new Date(easter);
-    sacredHeart.setDate(easter.getDate() + 68);
-    holidays.push({ month: sacredHeart.getMonth(), day: sacredHeart.getDate() });
-  
-    //Corrimiento para el día lunes
-    holidays.push(...this.getMondayHolidays(year));
-  
-    return holidays;
-  }
-  
-  //Lunes festivos calculo
-  getMondayHolidays(year: number): { month: number, day: number }[] {
-    const holidays: { month: number, day: number }[] = [];
-  
-    //Reyes magoos
-    holidays.push(this.getFirstMondayAfter(year, 0, 6));
- 
-    // San Jose
-    holidays.push(this.getFirstMondayAfter(year, 2, 19));
-  
-    //San Pedro y San Pablo
-    holidays.push(this.getFirstMondayAfter(year, 5, 29));
-  
-    //Asuncion de la virgen
-    holidays.push(this.getFirstMondayAfter(year, 7, 15));
-  
-    //Dia de la raza
-    holidays.push(this.getFirstMondayAfter(year, 9, 12));
-  
-    //Dia de todos lo santos
-    holidays.push(this.getFirstMondayAfter(year, 10, 1));
-  
-    //Independencia de Cartagena
-    holidays.push(this.getFirstMondayAfter(year, 10, 11));
-  
-    return holidays;
-  }
-  
-  //Metodo para encontrar el Lunes luego de una fecha especifica
-  getFirstMondayAfter(year: number, month: number, day: number): { month: number, day: number } {
+  // Recorrer todos los días del mes
+  for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day);
-    const dayOfWeek = date.getDay();
-  
-    //Si el dia es Lunes, no se traslada
-    if (dayOfWeek === 1) {
-      return { month: date.getMonth(), day: date.getDate() };
+    // 0 es domingo en JavaScript
+    if (date.getDay() === 0) {
+      sundays.push(day);
     }
+  }
   
-    //Calculo para la llegada del proximo lunes
-    const daysToAdd = (8 - dayOfWeek) % 7;
-    date.setDate(date.getDate() + daysToAdd);
+  return sundays;
+}
   
+// Festivos móviles calculados dinámicamente para cada año
+calculateMobileHolidays(year: number): { month: number, day: number }[] {
+  const holidays: { month: number, day: number }[] = [];
+
+  // Calcular domingo de pascua (base para Semana Santa)
+  const easter = this.calculateEasterSunday(year);
+  
+  // Jueves Santo (3 días antes de Pascua)
+  const holyThursday = new Date(easter);
+  holyThursday.setDate(easter.getDate() - 3);
+  holidays.push({ month: holyThursday.getMonth(), day: holyThursday.getDate() });
+  
+  // Viernes Santo (2 días antes de Pascua)
+  const goodFriday = new Date(easter);
+  goodFriday.setDate(easter.getDate() - 2);
+  holidays.push({ month: goodFriday.getMonth(), day: goodFriday.getDate() });
+  
+  // Día de la Ascensión (40 días después de Pascua, trasladado al lunes)
+  const ascension = new Date(easter);
+  ascension.setDate(easter.getDate() + 39); // 39 días después de Pascua
+  holidays.push(this.getNextMonday(ascension));
+  
+  // Corpus Christi (60 días después de Pascua, trasladado al lunes)
+  const corpusChristi = new Date(easter);
+  corpusChristi.setDate(easter.getDate() + 60);
+  holidays.push(this.getNextMonday(corpusChristi));
+  
+  // Sagrado Corazón (68 días después de Pascua, trasladado al lunes)
+  const sacredHeart = new Date(easter);
+  sacredHeart.setDate(easter.getDate() + 68);
+  holidays.push(this.getNextMonday(sacredHeart));
+  
+  // Festivos que se trasladan al lunes siguiente
+  
+  // Día de los Reyes Magos (6 de enero)
+  holidays.push(this.getNextMonday(new Date(year, 0, 6)));
+  
+  // Día de San José (19 de marzo)
+  holidays.push(this.getNextMonday(new Date(year, 2, 19)));
+  
+  // San Pedro y San Pablo (29 de junio)
+  holidays.push(this.getNextMonday(new Date(year, 5, 29)));
+  
+  // Día de la Asunción (15 de agosto)
+  holidays.push(this.getNextMonday(new Date(year, 7, 15)));
+  
+  // Día de la Raza (12 de octubre)
+  holidays.push(this.getNextMonday(new Date(year, 9, 12)));
+  
+  // Día de Todos los Santos (1 de noviembre)
+  holidays.push(this.getNextMonday(new Date(year, 10, 1)));
+  
+  // Independencia de Cartagena (11 de noviembre)
+  holidays.push(this.getNextMonday(new Date(year, 10, 11)));
+  
+  return holidays;
+}
+
+// Método para obtener el lunes siguiente a una fecha
+// Si la fecha ya es lunes, devuelve la misma fecha
+getNextMonday(date: Date): { month: number, day: number } {
+  const dayOfWeek = date.getDay(); // 0 = domingo, 1 = lunes, etc.
+  
+  // Si el día es lunes (1), devuelve la misma fecha
+  if (dayOfWeek === 1) {
     return { month: date.getMonth(), day: date.getDate() };
   }
   
-  //Metodo para calcular el domingo de pascua
-  calculateEasterSunday(year: number): Date {
-    const a = year % 19;
-    const b = Math.floor(year / 100);
-    const c = year % 100;
-    const d = Math.floor(b / 4);
-    const e = b % 4;
-    const f = Math.floor((b + 8) / 25);
-    const g = Math.floor((b - f + 1) / 3);
-    const h = (19 * a + b - d - g + 15) % 30;
-    const i = Math.floor(c / 4);
-    const k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7;
-    const m = Math.floor((a + 11 * h + 22 * l) / 451);
-    const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
-    const day = ((h + l - 7 * m + 114) % 31) + 1;
-    return new Date(year, month, day);
-  }
+  // Calcular días hasta el próximo lunes
+  const daysToAdd = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+  
+  // Crear nueva fecha con el próximo lunes
+  const nextMonday = new Date(date);
+  nextMonday.setDate(date.getDate() + daysToAdd);
+  
+  return { month: nextMonday.getMonth(), day: nextMonday.getDate() };
+}
+
+// Método para calcular el domingo de pascua (Algoritmo de Butcher/Meeus)
+calculateEasterSunday(year: number): Date {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month, day);
+}
   
 //Metodo para abrir el modal del evento
  openCreateEventModal(): void {
@@ -672,20 +780,19 @@ submitForm(): void {
     });
     return;
   }
-  //Obtener minutos desde media noche
-  const getMinutesFromMidnight = (timeString: string) => {
-    const [time, period] = timeString.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-
-    if (period === 'PM' && hours !== 12) hours += 12;
-    else if (period === 'AM' && hours === 12) hours = 0;
-
-    return hours * 60 + minutes;
-  };
-
-  const startMinutes = getMinutesFromMidnight(this.selectedStartTime);
-  const endMinutes = getMinutesFromMidnight(this.selectedEndTime);
- //En caso de que en el modal no se digite de forma correcta las horas, avisar y no insertar
+  
+  // Convertir a horario militar en caso de ser necesario
+  const startTime = this.selectedStartTime.includes('AM') || this.selectedStartTime.includes('PM') 
+    ? this.convertTimeFormat(this.selectedStartTime) 
+    : this.selectedStartTime;
+    
+  const endTime = this.selectedEndTime.includes('AM') || this.selectedEndTime.includes('PM') 
+    ? this.convertTimeFormat(this.selectedEndTime) 
+    : this.selectedEndTime;
+  
+  const startMinutes = this.getMinutesFromMidnight(startTime);
+  const endMinutes = this.getMinutesFromMidnight(endTime);
+  
   if (endMinutes <= startMinutes) {
     Swal.fire({
       toast: true,
@@ -701,10 +808,10 @@ submitForm(): void {
 
   const newEvent: Partial<CalendarEvent> = {
     date: this.selectedDate,
-    startTime: this.selectedStartTime,
-    endTime: this.selectedEndTime
+    startTime: startTime,
+    endTime: endTime
   };
-  //Si existe un evento en ese horario, no insertar
+  
   if (this.checkTimeCollision(newEvent)) {
     Swal.fire({
       toast: true,
@@ -724,22 +831,23 @@ submitForm(): void {
     name: this.eventName,
     type: this.activityType,
     date: this.selectedDate,
-    startTime: this.selectedStartTime,
-    endTime: this.selectedEndTime,
+    startTime: startTime,
+    endTime: endTime,
     color: this.typeColors[this.activityType as keyof typeof this.typeColors].backgroundColor,
     userId: this.currentUser
   };
 
-  //Confirmacion del usuario
   Swal.fire({
     title: '¿Estás seguro de crear la actividad?',
-    text: `Nombre de actividad: ${finalEvent.name}, Fecha: ${finalEvent.date}`,
+    html: `<b>Nombre de actividad:</b> ${finalEvent.name}<br>
+           <b>Fecha de actividad:</b> ${finalEvent.date.toLocaleDateString()}<br>
+           <b>Tipo de actividad:</b> ${finalEvent.type}<br>
+           <b>Horario:</b> ${finalEvent.startTime} - ${finalEvent.endTime}`,
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Sí, crear',
     cancelButtonText: 'Cancelar'
   }).then((result) => {
-    //Crear evento y enviar a la base de datos
     if (result.isConfirmed) {
       this.apiService.addEvent(finalEvent).subscribe({
         next: (response) => {
@@ -804,40 +912,35 @@ startResize(event: MouseEvent, calendarEvent: CalendarEvent, type: 'top' | 'bott
 //Ejecuta los movimientos del mouse
 @HostListener('document:mousemove', ['$event'])
 onMouseMove(event: MouseEvent) {
-  //Redimencionamiento de eventos
+  // Resizing events
   if (this.isResizing && this.resizingEvent) {
-
-    //Calculo de movimientos del mouse
+    // Calculate mouse movements
     event.preventDefault();
     
     const deltaY = event.clientY - this.resizeStartY;
     const quarterHourHeight = this.hourHeight / 4;
-    const quarterHourDelta = Math.round(deltaY / quarterHourHeight); 
-    //Convierte una hora en minutos totales
+    const quarterHourDelta = Math.round(deltaY / quarterHourHeight);
+    
+    // Convert time string to total minutes (works with both AM/PM and military format)
     const getMinutesFromTime = (timeString: string): number => {
-      const [time, period] = timeString.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
-      if (period === 'PM' && hours !== 12) hours += 12;
-      else if (period === 'AM' && hours === 12) hours = 0;
-      return hours * 60 + minutes;
+      return this.getMinutesFromMidnight(timeString);
     };
-    //Convertir minutos totales a formato hh:mm AM/PM
+    
+    // Convert total minutes to military time format
     const formatTimeWithMinutes = (totalMinutes: number): string => {
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
-      const isPM = hours >= 12;
-      const displayHours = hours % 12 || 12;
-      return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     };
-    //Obtener los minutos de inicio y fin del evento
+    
+    // Get start and end minutes of the event
     const currentStartMinutes = getMinutesFromTime(this.resizingEvent.startTime);
     const currentEndMinutes = getMinutesFromTime(this.resizingEvent.endTime);
     
-    //Calcular la nueva hora de inicio o fin del evento
+    // Calculate new start or end time
     let newStartMinutes = currentStartMinutes;
     let newEndMinutes = currentEndMinutes;
     
-
     if (this.resizeType === 'top') {
       newStartMinutes = currentStartMinutes + (quarterHourDelta * 15);
       newStartMinutes = Math.max(
@@ -852,17 +955,17 @@ onMouseMove(event: MouseEvent) {
       );
     }
     
-    //Redondear a multiplos de 15 min
+    // Round to multiples of 15 min
     newStartMinutes = Math.round(newStartMinutes / 15) * 15;
     newEndMinutes = Math.round(newEndMinutes / 15) * 15;
     
- 
     const hasCollision = this.checkResizeCollision({
       ...this.resizingEvent,
       startTime: formatTimeWithMinutes(newStartMinutes),
       endTime: formatTimeWithMinutes(newEndMinutes)
     });
-    // Si no hay colision, actualizar el evento
+    
+    // If no collision, update the event
     if (!hasCollision) {
       const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
       
@@ -875,8 +978,9 @@ onMouseMove(event: MouseEvent) {
         this.cdr.detectChanges();
       }
     }
-    //Creacion  de eventos con arrastre
-  } else if (this.isDragCreating && this.dragStartCell) {
+  }
+  // Rest of the method remains unchanged
+  else if (this.isDragCreating && this.dragStartCell) {
     const cell = this.findTimeCell(event);
     if (cell) {
       this.dragEndCell = {
@@ -887,6 +991,7 @@ onMouseMove(event: MouseEvent) {
     }
   }
 }
+
 
 //Ejecucion al soltar el boton del mouse
 @HostListener('document:mouseup', ['$event'])
@@ -986,9 +1091,7 @@ onMouseUp(event: MouseEvent) {
 //Metodo auxiliar para formatear la hora
 private formatTimeString(hour: number): string {
   const adjustedHour = hour % 24;
-  const isPM = adjustedHour >= 12;
-  const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
-  return `${displayHour.toString().padStart(2, '0')}:00 ${isPM ? 'PM' : 'AM'}`;
+  return `${adjustedHour.toString().padStart(2, '0')}:00`;
 }
 
  // Método para abrir el modal de edición
@@ -1063,7 +1166,7 @@ onEditEndTimeChange(value: string): void {
 
 // Método para actualizar el evento
 updateEvent(): void {
-  // Validación de campos requeridos
+  // Validatciones
   if (!this.editEventName || !this.editActivityType || !this.editDay || !this.editTime || !this.editEndDay) {
     Swal.fire({
       toast: true,
@@ -1077,20 +1180,18 @@ updateEvent(): void {
     return;
   }
 
-  // Función auxiliar para convertir tiempo a minutos
-  const getMinutesFromMidnight = (timeString: string) => {
-    const [time, period] = timeString.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
+  // Convertir a horario militar
+  const startTime = this.editTime.includes('AM') || this.editTime.includes('PM') 
+    ? this.convertTimeFormat(this.editTime) 
+    : this.editTime;
+    
+  const endTime = this.editEndDay.includes('AM') || this.editEndDay.includes('PM') 
+    ? this.convertTimeFormat(this.editEndDay) 
+    : this.editEndDay;
 
-    if (period === 'PM' && hours !== 12) hours += 12;
-    else if (period === 'AM' && hours === 12) hours = 0;
-
-    return hours * 60 + minutes;
-  };
-
-  // Validación de horarios
-  const startMinutes = getMinutesFromMidnight(this.editTime);
-  const endMinutes = getMinutesFromMidnight(this.editEndDay);
+  // Validacion de tiempos
+  const startMinutes = this.getMinutesFromMidnight(startTime);
+  const endMinutes = this.getMinutesFromMidnight(endTime);
 
   if (endMinutes <= startMinutes) {
     Swal.fire({
@@ -1106,7 +1207,6 @@ updateEvent(): void {
   }
 
   if (this.currentEditingEvent) {
-    // Creamos la fecha a partir del string del input date
     const selectedDate = new Date(this.editDay + 'T12:00:00');
 
     const updatedEvent: CalendarEvent = {
@@ -1114,19 +1214,19 @@ updateEvent(): void {
       name: this.editEventName,
       type: this.editActivityType,
       date: selectedDate,
-      startTime: this.editTime,
-      endTime: this.editEndDay,
+      startTime: startTime,
+      endTime: endTime,
       color: this.typeColors[this.editActivityType as keyof typeof this.typeColors].backgroundColor
     };
 
-    // Verificación de colisiones de tiempo
+    // Time collision
     const otherEvents = this.events.filter(e => e.id !== this.currentEditingEvent?.id);
     const hasCollision = otherEvents.some(e => {
       const sameDate = new Date(e.date).toDateString() === new Date(updatedEvent.date).toDateString();
       if (!sameDate) return false;
 
-      const eventStart = getMinutesFromMidnight(e.startTime);
-      const eventEnd = getMinutesFromMidnight(e.endTime);
+      const eventStart = this.getMinutesFromMidnight(e.startTime);
+      const eventEnd = this.getMinutesFromMidnight(e.endTime);
       return (startMinutes < eventEnd && endMinutes > eventStart);
     });
 
@@ -1144,7 +1244,7 @@ updateEvent(): void {
       return;
     }
 
-    // Confirmación antes de actualizar
+    // Confirmacion
     Swal.fire({
       title: '¿Estás seguro de modificar la actividad?',
       text: `Actividad: ${updatedEvent.name}`,
@@ -1154,7 +1254,7 @@ updateEvent(): void {
       cancelButtonText: 'Cancelar'
     }).then((result) => {
       if (result.isConfirmed) {
-        // Llamada al API Service
+        // Llamar al api
         this.apiService.updateEventFromModal(updatedEvent).subscribe({
           next: (response) => {
             const eventIndex = this.events.findIndex(e => e.id === this.currentEditingEvent?.id);
@@ -1189,6 +1289,7 @@ updateEvent(): void {
     });
   }
 }
+
 
 //Manejo preciso de clicks para la creacion de eventos por arrastre
 startDragEvent(event: MouseEvent, calendarEvent: CalendarEvent) {
@@ -1611,28 +1712,18 @@ hasEventAtHour(weekDay: WeekDay, hour: number): CalendarEvent | null {
 private getHourFromTimeString(timeString: string): number {
   if (!timeString) return this.BASE_HOUR;
 
-  const [time, period] = timeString.split(' ');
+  // If AM/PM format, convert to 24-hour first
+  if (timeString.includes('AM') || timeString.includes('PM')) {
+    timeString = this.convertTimeFormat(timeString);
+  }
   
-  // Verifica si el periodo está presente (AM/PM)
-  if (!period || (period !== 'AM' && period !== 'PM')) {
-    console.error('Formato de hora incorrecto, falta AM/PM:', timeString);
-    return this.BASE_HOUR;
-  }
-
-  let [hours] = time.split(':').map(Number);
-
+  const [hours] = timeString.split(':').map(Number);
+  
   if (isNaN(hours)) {
-    console.error('Formato de hora incorrecto:', timeString);
+    console.error('Incorrect time format:', timeString);
     return this.BASE_HOUR;
   }
-
-  /** Convertir a formato de 24 horas */
-  if (period === 'PM' && hours !== 12) {
-    hours += 12;
-  } else if (period === 'AM' && hours === 12) {
-    hours = 0;
-  }
-
+  
   return hours;
 }
 
@@ -1646,7 +1737,7 @@ isEventInHour(event: CalendarEvent, hour: number): boolean {
 
 //Estilos del tipo de evento.
 getEventStyle(event: CalendarEvent): any {
-  // Llamar a normalizedEvent para la recarga de la pagina
+  // Call normalizeEvent for page reload
   const normalizedEvent = this.normalizeEventData(event);
   
   if (!normalizedEvent.startTime || !normalizedEvent.endTime) {
@@ -1658,8 +1749,8 @@ getEventStyle(event: CalendarEvent): any {
   const endHour = this.getHourFromTimeString(normalizedEvent.endTime);
   
   const [startMinutes, endMinutes] = [
-    normalizedEvent.startTime.includes(':') ? parseInt(normalizedEvent.startTime.split(':')[1].split(' ')[0]) : 0,
-    normalizedEvent.endTime.includes(':') ? parseInt(normalizedEvent.endTime.split(':')[1].split(' ')[0]) : 0
+    normalizedEvent.startTime.includes(':') ? parseInt(normalizedEvent.startTime.split(':')[1]) : 0,
+    normalizedEvent.endTime.includes(':') ? parseInt(normalizedEvent.endTime.split(':')[1]) : 0
   ];
 
   const minuteOffset = startMinutes / 60;
@@ -1667,6 +1758,7 @@ getEventStyle(event: CalendarEvent): any {
 
   const eventColor = this.typeColors[normalizedEvent.type];
 
+  // Rest of the style calculation remains the same
   return {
     position: 'absolute',
     top: `${minuteOffset * 82}px`,
@@ -1768,9 +1860,19 @@ onEventMouseLeave(): void {
 }
 
   //Metodo para formatear el rango de horas de un evento en el formato AM/PM
- formatEventTime(event: CalendarEvent): string {
-    return `${event.startTime} - ${event.endTime}`;
+  formatEventTime(event: CalendarEvent): string {
+    // Convert times to military format if they're in AM/PM
+    const startTime = event.startTime.includes('AM') || event.startTime.includes('PM') 
+      ? this.convertTimeFormat(event.startTime) 
+      : event.startTime;
+      
+    const endTime = event.endTime.includes('AM') || event.endTime.includes('PM') 
+      ? this.convertTimeFormat(event.endTime) 
+      : event.endTime;
+      
+    return `${startTime} - ${endTime}`;
   }
+  
 
   //Metodo para retornar un rango de fechas que representa la semana actual
   getWeekRange(): string {
@@ -1874,15 +1976,13 @@ getDayName(dayIndex: number): string {
 generateAvailableTimes(): void {
   const times: string[] = [];
   
-  // Generar horas desde BASE_HOUR (3 AM) hasta 12 AM del día siguiente
+  // Generate hours from BASE_HOUR (3 AM) until BASE_HOUR + 21
   for (let hour = this.BASE_HOUR; hour < this.BASE_HOUR + 21; hour++) {
-    const adjustedHour = hour % 24; // Asegura que las horas estén en el rango 0-23
-    const isPM = adjustedHour >= 12;
-    const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
+    const adjustedHour = hour % 24; // Ensure hours are in range 0-23
     
-    // Añadir intervalos de 15 minutos
+    // Add 15-minute intervals
     ['00', '15', '30', '45'].forEach(minute => {
-      times.push(`${displayHour.toString().padStart(2, '0')}:${minute} ${isPM ? 'PM' : 'AM'}`);
+      times.push(`${adjustedHour.toString().padStart(2, '0')}:${minute}`);
     });
   }
   
@@ -1933,24 +2033,16 @@ private checkTimeCollision(newEvent: Partial<CalendarEvent>): boolean {
   const newEndTime = newEvent.endTime || '';
   const newDate = newEvent.date;
 
-  const getMinutesFromMidnight = (timeString: string): number => {
-    const [time, period] = timeString.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (period === 'PM' && hours !== 12) hours += 12;
-    else if (period === 'AM' && hours === 12) hours = 0;
-    return hours * 60 + minutes;
-  };
-
-  const newStartMinutes = getMinutesFromMidnight(newStartTime);
-  const newEndMinutes = getMinutesFromMidnight(newEndTime);
+  const newStartMinutes = this.getMinutesFromMidnight(newStartTime);
+  const newEndMinutes = this.getMinutesFromMidnight(newEndTime);
 
   return this.events.some(existingEvent => {
     if (existingEvent.date.toDateString() !== newDate?.toDateString()) return false;
 
-    const existingStartMinutes = getMinutesFromMidnight(existingEvent.startTime);
-    const existingEndMinutes = getMinutesFromMidnight(existingEvent.endTime);
+    const existingStartMinutes = this.getMinutesFromMidnight(existingEvent.startTime);
+    const existingEndMinutes = this.getMinutesFromMidnight(existingEvent.endTime);
 
-    // Cambiado para permitir eventos que coinciden exactamente en los límites
+    // Check for time collision
     return (
       (newStartMinutes > existingStartMinutes && newStartMinutes < existingEndMinutes) ||
       (newEndMinutes > existingStartMinutes && newEndMinutes < existingEndMinutes) ||
@@ -1961,42 +2053,31 @@ private checkTimeCollision(newEvent: Partial<CalendarEvent>): boolean {
 
 //Metodo para verificar las colisiones al redimencionar eventos
 private checkResizeCollision(proposedEvent: CalendarEvent): boolean {
-
   const eventsOnSameDay = this.events.filter(event => 
     event.id !== proposedEvent.id && 
     new Date(event.date).toDateString() === new Date(proposedEvent.date).toDateString()
   );
 
-  const getMinutesFromTime = (timeString: string): number => {
-    const [time, period] = timeString.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (period === 'PM' && hours !== 12) hours += 12;
-    else if (period === 'AM' && hours === 12) hours = 0;
-    return hours * 60 + minutes;
-  };
-
-  const proposedStart = getMinutesFromTime(proposedEvent.startTime);
-  const proposedEnd = getMinutesFromTime(proposedEvent.endTime);
+  const proposedStart = this.getMinutesFromMidnight(proposedEvent.startTime);
+  const proposedEnd = this.getMinutesFromMidnight(proposedEvent.endTime);
 
   return eventsOnSameDay.some(event => {
-    const eventStart = getMinutesFromTime(event.startTime);
-    const eventEnd = getMinutesFromTime(event.endTime);
+    const eventStart = this.getMinutesFromMidnight(event.startTime);
+    const eventEnd = this.getMinutesFromMidnight(event.endTime);
 
     return (proposedStart < eventEnd && proposedEnd > eventStart);
   });
 }
 
+
 // Método auxiliar para convertir tiempo en formato "HH:MM AM/PM" a número de hora
 private timeStringToHour(timeString: string): number {
-  const [time, period] = timeString.split(' ');
-  let [hours] = time.split(':').map(Number);
   
-  if (period === 'PM' && hours !== 12) {
-    hours += 12;
-  } else if (period === 'AM' && hours === 12) {
-    hours = 0;
+  if (timeString.includes('AM') || timeString.includes('PM')) {
+    timeString = this.convertTimeFormat(timeString);
   }
   
+  const [hours] = timeString.split(':').map(Number);
   return hours;
 }
 
@@ -2042,6 +2123,7 @@ private calculateActivityPercentages(): void {
   Object.keys(hoursPerActivity).forEach(type => {
     const percentage = (hoursPerActivity[type as keyof ActivityStats] / totalHours) * 100;
     this.activityPercentages[type as keyof ActivityStats] = Math.round(percentage);
+    console.log(totalHours)
   });
 
   // Forzar actualización de la vista
@@ -2137,9 +2219,7 @@ onCalendarMouseUp(event: MouseEvent) {
 //Formatear los minutos de un string
 private formatTimeStringWithMinutes(hour: number, minutes: number): string {
   const adjustedHour = hour % 24;
-  const isPM = adjustedHour >= 12;
-  const displayHour = adjustedHour > 12 ? adjustedHour - 12 : (adjustedHour === 0 ? 12 : adjustedHour);
-  return `${displayHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
+  return `${adjustedHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
 //Metodo para encontrar la celda de tiempo en la que se realiza el redimencionamiento
@@ -2235,9 +2315,10 @@ private updateTemporaryEvent() {
   const startHour = Math.min(this.dragStartCell.hour, this.dragEndCell.hour);
   const endHour = Math.max(this.dragStartCell.hour, this.dragEndCell.hour);
   
-  // Formatear las horas para mostrarlas
+  // Formateo de horas
   const startTimeDisplay = this.formatTimeStringWithMinutes(Math.floor(startHour), Math.round((startHour % 1) * 60));
   const endTimeDisplay = this.formatTimeStringWithMinutes(Math.floor(endHour), Math.round((endHour % 1) * 60));
+  
   
   const dayWidth = (rect.width - timeColumnWidth) / 7;
   
@@ -2279,11 +2360,11 @@ private updateTemporaryEvent() {
 
   // Actualizar el contenido del evento temporal usando flexbox para el posicionamiento
   this.temporaryEventElement.innerHTML = `
-    <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-      <div style="font-family: Arial, sans-serif; Lunasima font-size: 14px; font-weight: bold;">(title)</div>
-      <div style="font-family: Arial, sans-serif; font-size: 14px;">${startTimeDisplay} - ${endTimeDisplay}</div>
-    </div>
-  `;
+  <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+    <div style="font-family: Arial, sans-serif; Lunasima font-size: 14px; font-weight: bold;">(title)</div>
+    <div style="font-family: Arial, sans-serif; font-size: 14px;">${startTimeDisplay} - ${endTimeDisplay}</div>
+  </div>
+`;
 
   Object.assign(this.temporaryEventElement.style, {
     position: 'fixed',
@@ -2305,17 +2386,25 @@ private updateTemporaryEvent() {
   });
 }
 
+//Metodo auxiliar para convertir los eventos a un horario militar
+convertAllEventsToMilitaryTime(): void {
+  this.events = this.events.map(event => {
+    return {
+      ...event,
+      startTime: this.convertTimeFormat(event.startTime),
+      endTime: this.convertTimeFormat(event.endTime)
+    };
+  });
+}
+
 //Metodo auxiliar para el tiempo
 private timeStringToMinutes(timeString: string): number {
-  const [time, period] = timeString.split(' ');
-  let [hours, minutes] = time.split(':').map(Number);
-  
-  if (period === 'PM' && hours !== 12) {
-    hours += 12;
-  } else if (period === 'AM' && hours === 12) {
-    hours = 0;
+  // Convertir a horario militar
+  if (timeString.includes('AM') || timeString.includes('PM')) {
+    timeString = this.convertTimeFormat(timeString);
   }
   
+  const [hours, minutes] = timeString.split(':').map(Number);
   return hours * 60 + minutes;
 }
 
