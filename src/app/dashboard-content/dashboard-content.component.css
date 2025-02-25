@@ -225,6 +225,30 @@ body {
     background: #fff;
  
   }
+/* Estilos para el título del calendario */
+.title-container {
+  position: relative;
+  cursor: pointer;
+}
+
+
+h2:hover {
+  text-decoration: underline;
+}
+
+/* Personalización del input type="month" */
+.month-input {
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-width: 180px;
+}
+
+.month-input:focus {
+  outline: 2px solid #4d90fe;
+  border-color: #4d90fe;
+}
 
   /* Encabezados de los contenedores */
   .activities h3, .extra h3, .monthly-calendar h2 {
@@ -315,6 +339,13 @@ body {
 
   .holiday {
    color: #8298E1;
+   transition: background-color 0.3s ease, color 0.3s ease;
+   height: 22px;
+   padding: 10px; 
+   font-family: "Lato", serif;
+   text-align: center;
+   font-size: 1rem;
+   width: 14.28%;
   }
   
   
@@ -372,7 +403,6 @@ body {
   
   .selected-week {
     background-color: rgba(182, 182, 182, 0.3); 
-    border-radius: 5px;
   }
   
   .not-current-month {
@@ -506,6 +536,15 @@ body {
     font-weight: 700;
     font-family: Arial, Helvetica, sans-serif;
   }
+
+  /* Para el primer cuadro de tiempo en la esquina superior izquierda */
+.calendar > .time:first-of-type {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 11;
+  background-color: #f8f9fa;
+}
   
   .time span {
     position: absolute;
@@ -517,7 +556,6 @@ body {
   }
   
   .day {
-    border-radius: 5px;
     border-right: 1px solid rgba(223, 223, 223, 0.50);
     color: rgba(55, 55, 55, 0.37);
     text-align: center;
