@@ -329,7 +329,7 @@ loadUserEvents(): void {
       }
     },
     error: (error) => {
-      console.error('Error al cargar eventos:', error);
+      console.error('Error al cargar actividades:', error);
       Swal.fire({
         toast: true,
         position: 'top',
@@ -912,32 +912,32 @@ startResize(event: MouseEvent, calendarEvent: CalendarEvent, type: 'top' | 'bott
 //Ejecuta los movimientos del mouse
 @HostListener('document:mousemove', ['$event'])
 onMouseMove(event: MouseEvent) {
-  // Resizing events
+  // redimencion de eventos
   if (this.isResizing && this.resizingEvent) {
-    // Calculate mouse movements
+    // Calcular movimientos del mouse
     event.preventDefault();
     
     const deltaY = event.clientY - this.resizeStartY;
     const quarterHourHeight = this.hourHeight / 4;
     const quarterHourDelta = Math.round(deltaY / quarterHourHeight);
     
-    // Convert time string to total minutes (works with both AM/PM and military format)
+    //Convertir cadena de tiempo a minutos totales (funciona tanto con AM/PM como con formato militar)
     const getMinutesFromTime = (timeString: string): number => {
       return this.getMinutesFromMidnight(timeString);
     };
     
-    // Convert total minutes to military time format
+    // Convertir minutos totales a horario militar
     const formatTimeWithMinutes = (totalMinutes: number): string => {
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     };
     
-    // Get start and end minutes of the event
+    // Minutos de inicio y fin
     const currentStartMinutes = getMinutesFromTime(this.resizingEvent.startTime);
     const currentEndMinutes = getMinutesFromTime(this.resizingEvent.endTime);
     
-    // Calculate new start or end time
+    // Calcular nuevos minutos de inicio y fin
     let newStartMinutes = currentStartMinutes;
     let newEndMinutes = currentEndMinutes;
     
@@ -955,7 +955,7 @@ onMouseMove(event: MouseEvent) {
       );
     }
     
-    // Round to multiples of 15 min
+    // Usar round para multiplos de 15
     newStartMinutes = Math.round(newStartMinutes / 15) * 15;
     newEndMinutes = Math.round(newEndMinutes / 15) * 15;
     
@@ -965,7 +965,7 @@ onMouseMove(event: MouseEvent) {
       endTime: formatTimeWithMinutes(newEndMinutes)
     });
     
-    // If no collision, update the event
+    // Si no hay colision, actualiza
     if (!hasCollision) {
       const eventIndex = this.events.findIndex(e => e.id === this.resizingEvent?.id);
       
@@ -979,7 +979,6 @@ onMouseMove(event: MouseEvent) {
       }
     }
   }
-  // Rest of the method remains unchanged
   else if (this.isDragCreating && this.dragStartCell) {
     const cell = this.findTimeCell(event);
     if (cell) {
@@ -1166,7 +1165,7 @@ onEditEndTimeChange(value: string): void {
 
 // Método para actualizar el evento
 updateEvent(): void {
-  // Validatciones
+  // Validaciones
   if (!this.editEventName || !this.editActivityType || !this.editDay || !this.editTime || !this.editEndDay) {
     Swal.fire({
       toast: true,
@@ -1712,7 +1711,6 @@ hasEventAtHour(weekDay: WeekDay, hour: number): CalendarEvent | null {
 private getHourFromTimeString(timeString: string): number {
   if (!timeString) return this.BASE_HOUR;
 
-  // If AM/PM format, convert to 24-hour first
   if (timeString.includes('AM') || timeString.includes('PM')) {
     timeString = this.convertTimeFormat(timeString);
   }
@@ -1737,7 +1735,7 @@ isEventInHour(event: CalendarEvent, hour: number): boolean {
 
 //Estilos del tipo de evento.
 getEventStyle(event: CalendarEvent): any {
-  // Call normalizeEvent for page reload
+  // Llamar a normalizeEvent para recargar pagina
   const normalizedEvent = this.normalizeEventData(event);
   
   if (!normalizedEvent.startTime || !normalizedEvent.endTime) {
@@ -1758,7 +1756,7 @@ getEventStyle(event: CalendarEvent): any {
 
   const eventColor = this.typeColors[normalizedEvent.type];
 
-  // Rest of the style calculation remains the same
+  // Estilos del evento
   return {
     position: 'absolute',
     top: `${minuteOffset * 82}px`,
@@ -1825,7 +1823,6 @@ onEventMouseLeave(): void {
     cancelButtonText: 'Cancelar'
   }).then((result) => {
     if (result.isConfirmed) {
-      // Asumiendo que event.id es un número
       const eventId = Number(event.id);
       
       this.apiService.deleteEvent(eventId).subscribe({
@@ -1861,7 +1858,7 @@ onEventMouseLeave(): void {
 
   //Metodo para formatear el rango de horas de un evento en el formato AM/PM
   formatEventTime(event: CalendarEvent): string {
-    // Convert times to military format if they're in AM/PM
+    // Convertir a  horario militar
     const startTime = event.startTime.includes('AM') || event.startTime.includes('PM') 
       ? this.convertTimeFormat(event.startTime) 
       : event.startTime;
@@ -1976,11 +1973,11 @@ getDayName(dayIndex: number): string {
 generateAvailableTimes(): void {
   const times: string[] = [];
   
-  // Generate hours from BASE_HOUR (3 AM) until BASE_HOUR + 21
+  // Genera horas desde BASE_HOUR (3 AM) hasta BASE_HOUR + 21
   for (let hour = this.BASE_HOUR; hour < this.BASE_HOUR + 21; hour++) {
     const adjustedHour = hour % 24; // Ensure hours are in range 0-23
     
-    // Add 15-minute intervals
+    // Intervalos de 15 minutos
     ['00', '15', '30', '45'].forEach(minute => {
       times.push(`${adjustedHour.toString().padStart(2, '0')}:${minute}`);
     });
@@ -2123,7 +2120,7 @@ private calculateActivityPercentages(): void {
   Object.keys(hoursPerActivity).forEach(type => {
     const percentage = (hoursPerActivity[type as keyof ActivityStats] / totalHours) * 100;
     this.activityPercentages[type as keyof ActivityStats] = Math.round(percentage);
-    console.log(totalHours)
+    console.log('TOTAL DE HORAS: ',totalHours)
   });
 
   // Forzar actualización de la vista
