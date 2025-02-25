@@ -67,7 +67,16 @@
   <div class="monthly-calendar">
     <div class="calendar-controls">
       <div class="title-container">
-        <h2>{{ currentMonthName }} {{ currentYear }}</h2>
+        <h2 (click)="toggleMonthYearSelector()">{{ currentMonthName }} {{ currentYear }}</h2>
+        
+        <!-- Selector de mes y año usando input type="month" -->
+        <div class="month-year-selector" *ngIf="showMonthYearSelector">
+          <input 
+            type="month" 
+            [value]="currentMonthValue" 
+            (change)="onMonthYearChange($event)"
+            class="month-input">
+        </div>
       </div>
       <div class="nav-buttons">
         <button (click)="changeMonth(-1)" class="nav-button prev">
@@ -207,6 +216,7 @@
       <div class="form-group">
         <label>Nombre De La Actividad</label>
         <input
+        autocomplete="off"
           type="text"
           [(ngModel)]="eventName"
           name="eventName"
@@ -342,6 +352,7 @@
       <div class="form-group">
         <label>Nombre De La Actividad</label>
         <input
+        autocomplete="off"
           type="text"
           [(ngModel)]="editEventName"
           name="editEventName"
