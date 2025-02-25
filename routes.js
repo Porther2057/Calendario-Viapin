@@ -45,9 +45,9 @@ router.get('/events/user/:userId', async (req, res) => {
   }
 });
 
-// Validación del userId antes de insertar el evento
+// crear
 router.post('/events', (req, res) => {
-  const { name, type, date, startTime, endTime, color, userId } = req.body;
+  const { name, type, date, startTime, endTime, userId } = req.body;
 
   if (!userId) {
     return res.status(400).json({ error: 'userId es requerido' });
@@ -73,9 +73,9 @@ router.post('/events', (req, res) => {
       return res.status(400).json({ error: 'Formato de hora inválido' });
     }
 
-    const query = 'INSERT INTO calendar_events (name, type, date, start_time, end_time, color, userId) VALUES (?, ?, ?, ?, ?, ?, ?)';
+    const query = 'INSERT INTO calendar_events (name, type, date, start_time, end_time,  userId) VALUES (?, ?, ?, ?, ?, ?)';
     
-    connection.query(query, [name, type, date, start24, end24, color, userId], (err, result) => {
+    connection.query(query, [name, type, date, start24, end24, userId], (err, result) => {
       if (err) {
         console.error('Error en la consulta SQL:', err);
         return res.status(500).json({ error: 'Error al guardar el evento' });
@@ -85,7 +85,7 @@ router.post('/events', (req, res) => {
   });
 });
 
-//Crear evento
+//actualizar
 router.put('/events/modal/:id', (req, res) => {
   const id = parseInt(req.params.id);
 
@@ -93,7 +93,7 @@ router.put('/events/modal/:id', (req, res) => {
     return res.status(400).json({ error: 'ID inválido' });
   }
 
-  const { name, type, date, startTime, endTime, color } = req.body;
+  const { name, type, date, startTime, endTime } = req.body;
   const start24 = convertTo24Hour(startTime);
   const end24 = convertTo24Hour(endTime);
 
@@ -103,13 +103,13 @@ router.put('/events/modal/:id', (req, res) => {
 
   const query = `
     UPDATE calendar_events 
-    SET name = ?, type = ?, date = ?, start_time = ?, end_time = ?, color = ? 
+    SET name = ?, type = ?, date = ?, start_time = ?, end_time = ?
     WHERE id = ?;
   `;
 
   connection.query(
     query,
-    [name, type, date, start24, end24, color, id],
+    [name, type, date, start24, end24,  id],
     (err, result) => {
       if (err) {
         console.error('Error al actualizar el evento desde el modal:', err);
